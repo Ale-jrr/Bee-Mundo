@@ -24,8 +24,10 @@ export function medidas(L, A) {
     toque: 44,
     barra: Math.max(44, Math.round((compacto ? 46 : 56) * esc)),
     raio: Math.round(20 * esc),
-    // Botões de ação do canto inferior direito.
-    acao: Math.round(Math.max(58, Math.min(96, L * 0.085))),
+    // Botões de ação do canto inferior direito. Encolheram quando o sino virou
+    // o quarto botão: quatro no tamanho antigo tomavam a largura toda no
+    // celular. O piso de 50 continua acima do alvo mínimo de toque (44).
+    acao: Math.round(Math.max(50, Math.min(78, L * 0.072))),
     // Fonte base dos rótulos em caixa alta.
     rotulo: Math.max(9, Math.round(12 * esc)),
     numero: Math.max(13, Math.round(22 * esc)),
