@@ -727,3 +727,33 @@ O rodapé "o jogo está parado · toque para continuar" é a linha mais larga do
 cartão e a única que não passa pelo `maxWidth` do `fillText`. No retrato ele
 saía cortado nas duas pontas. O cartão agora se mede por ele, com
 `larguraRotulo`, e encolhe a fonte proporcionalmente se ainda assim não couber.
+
+### 9.21 Nome nos botões de ação
+
+Ícone sozinho é charada. A seta pra cima podia ser exportar, subir de nível ou
+vender; o raio podia ser velocidade. Cada botão da fileira passou a levar o
+nome do que abre, embaixo do ícone:
+
+| ícone | nome | abre |
+| --- | --- | --- |
+| sino | **avisos** | florada, encomenda, vespa, formiga, enxame |
+| raio | **impulsos** | clima e turbo, por moedas |
+| seta | **mercado** | a RAX |
+| flor | **campos** | as turmas de coleta |
+
+`boosts` e `mercado` eram ids internos que o jogador nunca tinha visto
+escritos, então o rótulo usa a palavra em português em vez do id — daí
+*impulsos*.
+
+O rótulo encolhe pra caber: em tela estreita o botão cai para 50 px e
+"impulsos" não entra no tamanho cheio. `larguraRotulo` mede antes e reduz fonte
+e espaçamento na mesma proporção. Medido no canvas, no retrato de 375 px: o
+rótulo mais largo ocupa 41 px dos 50, com 4,5 px de folga de cada lado.
+
+O ícone subiu para 40% da altura do botão e o nome ficou em 78% — antes o
+ícone ocupava o centro.
+
+Como os botões agora têm nome, o tutorial (§ 9.19) parou de descrever o desenho
+e passou a citar o rótulo: "toque no botão CAMPOS" em vez de "toque no botão de
+flor". Há teste ligando as duas pontas — se o nome mudar no HUD sem mudar no
+tutorial, o passo passaria a apontar para um botão que não existe.

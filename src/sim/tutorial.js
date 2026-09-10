@@ -30,7 +30,7 @@ export const PASSOS = [
     titulo: 'os campos',
     linhas: [
       'É lá fora que o néctar está.',
-      'Toque no botão de flor, no canto de baixo.',
+      'Toque no botão CAMPOS, no canto de baixo.',
     ],
     concluido: (estado, ui) => ui.painel === 'campos',
   },
@@ -98,7 +98,7 @@ export const PASSOS = [
     titulo: 'venda',
     linhas: [
       'Mel no vidro não conta: só vale o que é vendido.',
-      'Abra a bolsa, no botão da seta, e venda.',
+      'Abra o MERCADO, no canto de baixo, e venda.',
     ],
     concluido: (estado) => estado.vendidoNoAno > 0,
   },
@@ -129,8 +129,8 @@ export const PASSOS = [
     titulo: 'o sino',
     linhas: [
       'Florada, encomenda, vespa, formiga e enxame',
-      'aparecem no sino, no canto de baixo. Ele pisca',
-      'quando tem algo novo esperando você.',
+      'aparecem em AVISOS, no canto de baixo. O sino',
+      'pisca quando tem algo novo esperando você.',
     ],
   },
   {

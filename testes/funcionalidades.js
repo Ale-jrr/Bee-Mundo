@@ -1126,5 +1126,20 @@ export async function rodar() {
   const fonteDoMain = await (await fetch('/src/main.js')).text();
   ok('qualquer toque fecha a dica que pausou', fonteDoMain.includes('dicaPausada(estado)'));
 
+  // ------------------------------------ 28. nome nos botoes de acao
+  const fonteHud = await (await fetch('/src/ui/hud.js')).text();
+  const nomes = [...fonteHud.matchAll(/nome: '([^']+)'/g)].map((x) => x[1]);
+  ok('todo botao de acao tem nome', nomes.length === 4, nomes.join(', '));
+  ok('e o nome nao e o id em ingles',
+    nomes.includes('impulsos') && nomes.includes('mercado')
+    && nomes.includes('avisos') && nomes.includes('campos'));
+  ok('o rotulo encolhe pra caber no botao', fonteHud.includes('larguraRotulo'));
+  // O tutorial manda tocar nos botoes pelo nome: se o nome mudar aqui sem
+  // mudar la, o passo passa a apontar pra um botao que nao existe mais.
+  const fonteTut = await (await fetch('/src/sim/tutorial.js')).text();
+  for (const n of ['CAMPOS', 'MERCADO', 'AVISOS']) {
+    ok('o tutorial aponta para ' + n, fonteTut.includes(n));
+  }
+
   return { total, falhas: falhas.length, detalhes: falhas };
 }

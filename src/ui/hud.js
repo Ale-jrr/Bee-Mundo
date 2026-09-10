@@ -1,4 +1,4 @@
-import { pilula, retanguloArredondado, rotulo, numero, barra, FONTE } from '../render/desenho.js';
+import { pilula, retanguloArredondado, rotulo, numero, barra, larguraRotulo, FONTE } from '../render/desenho.js';
 import { SEGUNDOS_POR_ESTACAO } from '../sim/estacoes.js';
 import { CLIMA, BOOSTS, metaDoAno } from '../sim/economia.js';
 import { campoEmFlorada } from '../sim/floradas.js';
@@ -289,12 +289,33 @@ function desenharPote(ctx, estado, pal, m) {
   zona('pote', x, y, l, a);
 }
 
+// Cada botão leva o nome do que ele abre. Ícone sozinho é charada: a seta pra
+// cima podia ser exportar, subir de nível ou vender, e o raio podia ser
+// velocidade. O nome resolve isso sem custar nada além de uma linha de texto.
+//
+// `boosts` e `mercado` são ids internos que o jogador nunca viu escritos, então
+// o rótulo usa a palavra em português em vez do id.
 const ACOES = [
-  { id: 'avisos', glifo: null },     // sino, desenhado à mão
-  { id: 'boosts', glifo: '⚡' },
-  { id: 'mercado', glifo: '↗' },
-  { id: 'campos', glifo: null },     // flor, desenhada à mão
+  { id: 'avisos', glifo: null, nome: 'avisos' },      // sino, desenhado à mão
+  { id: 'boosts', glifo: '⚡', nome: 'impulsos' },
+  { id: 'mercado', glifo: '↗', nome: 'mercado' },
+  { id: 'campos', glifo: null, nome: 'campos' },      // flor, desenhada à mão
 ];
+
+// Rótulo do botão de ação. Encolhe pra caber: em tela estreita o botão cai pra
+// 50 px e "impulsos" não entra no tamanho cheio.
+function nomeDaAcao(ctx, texto, pal, cx, cy, largura) {
+  let tamanho = Math.max(7, Math.round(largura * 0.15));
+  let espaco = Math.max(0.3, largura * 0.018);
+  const cabe = largura - Math.round(largura * 0.12);
+  const larg = larguraRotulo(ctx, texto, tamanho, espaco);
+  if (larg > cabe) {
+    const f = cabe / larg;
+    tamanho = Math.max(6, tamanho * f);
+    espaco *= f;
+  }
+  rotulo(ctx, texto, cx, cy, { tamanho, espaco, cor: pal.css('escuro', 0.75), alinhar: 'center' });
+}
 
 // Sino desenhado em caminho, e não como emoji: emoji muda de forma em cada
 // sistema e aqui ele precisa parecer com o resto dos ícones.
@@ -351,7 +372,7 @@ function desenharSino(ctx, estado, pal, x, y, a, ui) {
 
   ctx.save();
   ctx.globalAlpha = pulso;
-  sino(ctx, x + a / 2, y + a / 2 - a * 0.04, a * 0.2, pal.css('escuro'));
+  sino(ctx, x + a / 2, y + a * 0.38, a * 0.18, pal.css('escuro'));
   ctx.restore();
 
   if (!ativos.length) return;
@@ -382,18 +403,20 @@ function desenharAcoes(ctx, estado, pal, m, ui = {}) {
     retanguloArredondado(ctx, x, y, a, a, m.raio);
     ctx.fillStyle = item.id === 'boosts' ? pal.css('hud', 0.55) : pal.css('cheia');
     ctx.fill();
+    // O ícone sobe pra abrir espaço pro nome, que fica na base do botão.
     ctx.save();
-    ctx.font = `700 ${Math.round(a * 0.42)}px ${FONTE}`;
+    ctx.font = `700 ${Math.round(a * 0.36)}px ${FONTE}`;
     ctx.fillStyle = i === 0 ? pal.css('cheia') : pal.css('escuro');
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    if (item.glifo) ctx.fillText(item.glifo, x + a / 2, y + a / 2 + 2);
+    if (item.glifo) ctx.fillText(item.glifo, x + a / 2, y + a * 0.40 + 2);
     ctx.restore();
 
     if (item.id === 'avisos') desenharSino(ctx, estado, pal, x, y, a, ui);
     if (item.id === 'campos') {
-      flor(ctx, x + a / 2, y + a / 2, a * 0.26, pal.css('escuro'), pal.css('cheia'));
+      flor(ctx, x + a / 2, y + a * 0.40, a * 0.23, pal.css('escuro'), pal.css('cheia'));
     }
+    nomeDaAcao(ctx, item.nome, pal, x + a / 2, y + a * 0.78, a);
 
     // Selo pulsante no botão de campos enquanto há florada: a oportunidade
     // dura 25 s e mora dentro de um painel fechado — sem chamado aqui fora,
