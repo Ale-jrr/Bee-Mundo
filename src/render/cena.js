@@ -12,6 +12,9 @@ import { desenharDerrota, desenharVitoria } from '../ui/fim.js';
 import { desenharCampos } from '../ui/campos.js';
 import { desenharMenu } from '../ui/menu.js';
 import { desenharHistorico } from '../ui/historico.js';
+// Apelidado: `cena.js` já tem uma `desenharAbelhas` local, que é a das
+// abelhas andando no favo. Esta é o painel do elenco.
+import { desenharAbelhas as desenharPainelAbelhas } from '../ui/abelhas.js';
 import { desenharRainha } from '../ui/rainha.js';
 import { desenharInicio } from '../ui/inicio.js';
 import { desenharTutorial } from '../ui/tutorial.js';
@@ -75,6 +78,7 @@ export function desenhar(ctx, estado, L, A, dt, ui = {}) {
   if (ui.painel === 'campos') desenharCampos(ctx, estado, pal, t, L, A, ui);
   if (ui.painel === 'menu') desenharMenu(ctx, estado, pal, L, A, ui);
   if (ui.painel === 'historico') desenharHistorico(ctx, estado, pal, L, A);
+  if (ui.painel === 'abelhas') desenharPainelAbelhas(ctx, estado, pal, L, A);
   if (ui.painel === 'rainha') desenharRainha(ctx, estado, pal, L, A);
   if (ui.ajudaMelhorias) desenharAjuda(ctx, pal, L, A, ui.ajudaMelhorias);
   // Depois dos painéis e antes do fim de partida: a escolha da primavera é

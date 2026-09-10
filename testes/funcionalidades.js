@@ -8,7 +8,7 @@ import { passo } from '../src/sim/tick.js';
 import * as A from '../src/sim/acoes.js';
 import { previsaoInverno, AVISO_INVERNO } from '../src/sim/inverno.js';
 import { SEGUNDOS_POR_ESTACAO, relogio } from '../src/sim/estacoes.js';
-import { medidas, areaDoClima, barraSuperior } from '../src/ui/layout.js';
+import { medidas, areaDoClima, areaDoPote, barraSuperior, BOTOES_DE_ACAO } from '../src/ui/layout.js';
 import { contarOrnamentos } from '../src/render/ornamentos.js';
 import {
   geometriaFavo, centroDaCelula, limitarCamera, limitarZoom, ZOOM,
@@ -36,7 +36,7 @@ import {
 import * as S from '../src/core/save.js';
 import { DESAFIO_PADRAO, regraDoDesafio, penalidadeDoInverno } from '../src/sim/desafios.js';
 import {
-  elenco, fatorColeta, fatorProducao, fatorRisco, melhorPara,
+  elenco, censo, fatorColeta, fatorProducao, fatorRisco, melhorPara,
 } from '../src/sim/talentos.js';
 import { campoEmFlorada, statsComFlorada, FLORADA } from '../src/sim/floradas.js';
 import { encomendaAtiva } from '../src/sim/encomendas.js';
@@ -1129,7 +1129,7 @@ export async function rodar() {
   // ------------------------------------ 28. nome nos botoes de acao
   const fonteHud = await (await fetch('/src/ui/hud.js')).text();
   const nomes = [...fonteHud.matchAll(/nome: '([^']+)'/g)].map((x) => x[1]);
-  ok('todo botao de acao tem nome', nomes.length === 4, nomes.join(', '));
+  ok('todo botao de acao tem nome', nomes.length === BOTOES_DE_ACAO, nomes.join(', '));
   ok('e o nome nao e o id em ingles',
     nomes.includes('impulsos') && nomes.includes('mercado')
     && nomes.includes('avisos') && nomes.includes('campos'));
@@ -1200,6 +1200,49 @@ export async function rodar() {
   mostrarDica(filaSalva, 'vespa');
   const filaVoltou = S.desserializar(JSON.parse(JSON.stringify(S.serializar(filaSalva))));
   ok('a filaTeste de dicas sobrevive ao save', (filaVoltou.filaDeDicas ?? []).includes('vespa'));
+
+  // ------------------------------------------ 30. censo e painel de abelhas
+  const colonia = novoJogo(42);
+  for (let i = 0; i < 9; i++) A.nascerAbelha(colonia);
+  const cs = censo(colonia);
+  ok('o censo conta todas as operarias',
+    cs.operarias === colonia.abelhas.filter((b) => b.papel === 'operaria').length,
+    `${cs.operarias}`);
+  ok('e a rainha fora delas', cs.rainha === 1);
+  ok('os pendores somam as operarias',
+    Object.values(cs.talentos).reduce((n, v) => n + v, 0) === cs.operarias);
+  ok('os lugares somam as operarias',
+    Object.values(cs.onde).reduce((n, v) => n + v, 0) === cs.operarias);
+  ok('sem pendor cai em comum',
+    cs.talentos.comum === colonia.abelhas.filter((b) => b.papel === 'operaria' && !b.talento).length);
+
+  // Alugada e guarda descrevem melhor onde a abelha esta do que o campo
+  // `estado`, que continua 'colmeia' nos dois casos.
+  const posto = novoJogo(42);
+  for (let i = 0; i < 6; i++) A.nascerAbelha(posto);
+  const naCasa = censo(posto).onde.colmeia;
+  A.alugar(posto);
+  ok('alugada sai da colmeia no censo', censo(posto).onde.alugada === 1
+    && censo(posto).onde.colmeia === naCasa - 1);
+  posto.abelhas.find((b) => b.papel === 'operaria' && b.estado === 'colmeia').guarda = true;
+  ok('guarda tem lugar proprio', censo(posto).onde.guarda === 1);
+  ok('e continua somando certo',
+    Object.values(censo(posto).onde).reduce((n, v) => n + v, 0) === censo(posto).operarias);
+
+  // A fileira de acao ganhou o quinto botao e nao pode encostar no vidro.
+  const fonteAcoes = await (await fetch('/src/ui/hud.js')).text();
+  const nomesDeAcao = [...fonteAcoes.matchAll(/nome: '([^']+)'/g)].map((v) => v[1]);
+  ok('ha cinco botoes de acao', nomesDeAcao.length === BOTOES_DE_ACAO, nomesDeAcao.join(','));
+  ok('um deles e o de abelhas', nomesDeAcao.includes('abelhas'));
+  for (const largura of [320, 375, 414, 768, 1280]) {
+    const mm = medidas(largura, 720);
+    const pote = areaDoPote(mm);
+    const espaco = Math.round(10 * mm.esc);
+    const inicio = largura - mm.margem - BOTOES_DE_ACAO * (mm.acao + espaco) + espaco;
+    ok(`a fileira nao encosta no vidro em ${largura}px`, inicio > pote.x + pote.l,
+      `inicio ${Math.round(inicio)} vs vidro ate ${Math.round(pote.x + pote.l)}`);
+    ok(`e o botao continua tocavel em ${largura}px`, mm.acao >= 44, `${mm.acao}`);
+  }
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

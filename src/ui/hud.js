@@ -299,8 +299,42 @@ const ACOES = [
   { id: 'avisos', glifo: null, nome: 'avisos' },      // sino, desenhado à mão
   { id: 'boosts', glifo: '⚡', nome: 'impulsos' },
   { id: 'mercado', glifo: '↗', nome: 'mercado' },
+  { id: 'abelhas', glifo: null, nome: 'abelhas' },    // abelha, desenhada à mão
   { id: 'campos', glifo: null, nome: 'campos' },      // flor, desenhada à mão
 ];
+
+// Abelha do botão. Desenhada aqui, e não reaproveitada de `render/favo.js`:
+// a do favo tem asa, perna e coroa, e em 20 px isso vira borrão. Esta é uma
+// silhueta — corpo, três listras e duas asas — que continua lendo pequena.
+function abelhaIcone(ctx, x, y, r, cor, corFundo) {
+  ctx.save();
+  ctx.translate(x, y);
+
+  ctx.fillStyle = cor;
+  ctx.globalAlpha = 0.45;
+  for (const lado of [-1, 1]) {
+    ctx.beginPath();
+    ctx.ellipse(lado * r * 0.62, -r * 0.42, r * 0.46, r * 0.26, lado * -0.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 0.62, r * 0.85, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Listras: recortadas do corpo, na cor do botão, pra não virar um bolo só.
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(0, 0, r * 0.62, r * 0.85, 0, 0, Math.PI * 2);
+  ctx.clip();
+  ctx.fillStyle = corFundo;
+  for (const dy of [-0.22, 0.28]) {
+    ctx.fillRect(-r, r * dy, r * 2, r * 0.18);
+  }
+  ctx.restore();
+  ctx.restore();
+}
 
 // Rótulo do botão de ação. Encolhe pra caber: em tela estreita o botão cai pra
 // 50 px e "impulsos" não entra no tamanho cheio.
@@ -415,6 +449,9 @@ function desenharAcoes(ctx, estado, pal, m, ui = {}) {
     if (item.id === 'avisos') desenharSino(ctx, estado, pal, x, y, a, ui);
     if (item.id === 'campos') {
       flor(ctx, x + a / 2, y + a * 0.40, a * 0.23, pal.css('escuro'), pal.css('cheia'));
+    }
+    if (item.id === 'abelhas') {
+      abelhaIcone(ctx, x + a / 2, y + a * 0.40, a * 0.24, pal.css('escuro'), pal.css('cheia'));
     }
     nomeDaAcao(ctx, item.nome, pal, x + a / 2, y + a * 0.78, a);
 

@@ -305,6 +305,15 @@ function tratarZona(z) {
     case 'boost:comprar':
       relatar(aplicarBoost(estado, z.dados.id));
       break;
+    case 'abelhas':
+      ui.painel = ui.painel === 'abelhas' ? null : 'abelhas';
+      break;
+    case 'abelhas:fechar':
+    case 'abelhas:fundo':
+      ui.painel = null;
+      break;
+    case 'abelhas:cartao':
+      break;                      // absorve o toque dentro do cartão
     case 'campos':
       ui.painel = ui.painel === 'campos' ? null : 'campos';
       ui.rolagemCampos = 0;

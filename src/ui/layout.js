@@ -6,6 +6,11 @@
 const LARGURA_BASE = 1280;
 const ALTURA_BASE = 720;
 
+// Quantos botões há na fileira de ação. Mora aqui porque o tamanho de cada um
+// depende de quantos são: eles dividem a faixa que sobra à direita do vidro de
+// mel, e encostar no vidro é o que acontecia ao acrescentar o quinto.
+export const BOTOES_DE_ACAO = 5;
+
 export function medidas(L, A) {
   // A escala segue a menor das duas dimensões relativas, com piso: abaixo dele
   // o texto ficaria ilegível e é melhor reorganizar o layout do que encolher.
@@ -24,14 +29,24 @@ export function medidas(L, A) {
     toque: 44,
     barra: Math.max(44, Math.round((compacto ? 46 : 56) * esc)),
     raio: Math.round(20 * esc),
-    // Botões de ação do canto inferior direito. Encolheram quando o sino virou
-    // o quarto botão: quatro no tamanho antigo tomavam a largura toda no
-    // celular. O piso de 50 continua acima do alvo mínimo de toque (44).
-    acao: Math.round(Math.max(50, Math.min(78, L * 0.072))),
+    // Botões de ação do canto inferior direito. Encolhem duas vezes: pela
+    // largura da tela, e pela faixa que sobra ao lado do vidro de mel depois
+    // que o quinto botão entrou. O piso é o alvo mínimo de toque.
+    acao: tamanhoDaAcao(L, esc, Math.round((compacto ? 10 : 22) * esc),
+      Math.round((compacto ? 88 : 130) * esc)),
     // Fonte base dos rótulos em caixa alta.
     rotulo: Math.max(9, Math.round(12 * esc)),
     numero: Math.max(13, Math.round(22 * esc)),
   };
+}
+
+// Lado do botão de ação: o menor entre o que a largura da tela pede e o que
+// cabe na faixa à direita do vidro de mel, sem nunca cair abaixo do toque.
+function tamanhoDaAcao(L, esc, margem, larguraPote) {
+  const espaco = Math.round(10 * esc);
+  const faixa = L - margem * 2 - larguraPote - Math.round(14 * esc);
+  const porFaixa = (faixa - (BOTOES_DE_ACAO - 1) * espaco) / BOTOES_DE_ACAO;
+  return Math.round(Math.max(44, Math.min(78, L * 0.072, porFaixa)));
 }
 
 // Onde fica o vidro de mel. Mora aqui porque duas coisas precisam dele: o HUD,

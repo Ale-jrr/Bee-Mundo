@@ -54,6 +54,29 @@ export function elenco(estado) {
   return conta;
 }
 
+// Censo da colônia: quantas de cada pendor e onde cada uma está. É o que o
+// painel de abelhas mostra — o que transforma "tenho 12 abelhas" em "tenho
+// três batedoras, e seis delas estão no campo".
+export function censo(estado) {
+  const talentos = { coleta: 0, producao: 0, defesa: 0, comum: 0 };
+  const onde = { colmeia: 0, campo: 0, guarda: 0, alugada: 0 };
+  let rainha = 0;
+  let operarias = 0;
+
+  for (const abelha of estado.abelhas ?? []) {
+    if (abelha.papel === 'rainha') { rainha++; continue; }
+    operarias++;
+    talentos[abelha.talento ?? 'comum']++;
+    // A ordem importa: alugada e guarda descrevem melhor onde ela está do que
+    // o campo `estado`, que continua 'colmeia' nos dois casos.
+    if (abelha.estado === 'alugada') onde.alugada++;
+    else if (abelha.guarda) onde.guarda++;
+    else if (['indo', 'coletando', 'voltando'].includes(abelha.estado)) onde.campo++;
+    else onde.colmeia++;
+  }
+  return { talentos, onde, rainha, operarias };
+}
+
 // Escolhe, entre as candidatas, a mais adequada à função — e só depois a
 // primeira que aparecer. É isto que faz o talento importar sem obrigar o
 // jogador a escalar abelha por abelha: ele decide **quantas** vão para o
