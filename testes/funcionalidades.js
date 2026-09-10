@@ -14,7 +14,7 @@ import {
   geometriaFavo, centroDaCelula, limitarCamera, limitarZoom, ZOOM,
 } from '../src/render/favo.js';
 import { dePixel } from '../src/sim/hex.js';
-import { DICAS, mostrarDica, fecharDica } from '../src/sim/dicas.js';
+import { DICAS, mostrarDica, fecharDica, dicaAtiva, dicaPausada } from '../src/sim/dicas.js';
 import { ritmoDoAr, limiteDeFome, AR } from '../src/sim/clima.js';
 import { pressaoDoEnxame, ENXAME } from '../src/sim/enxame.js';
 import { tempoAtivo, fatorDaColeta, fatorDaRebrota, TEMPO } from '../src/sim/tempo.js';
@@ -1047,6 +1047,84 @@ export async function rodar() {
   confirmarPasso(guardadoTut);
   const voltouTut = S.desserializar(JSON.parse(JSON.stringify(S.serializar(guardadoTut))));
   ok('o tutorial sobrevive ao save', tutorialAtivo(voltouTut)?.indice === 1);
+
+  // ------------------------------------- 27. dicas de acao pausam o jogo
+  const acoesComDica = Object.entries(DICAS).filter(([, d]) => d.pausa);
+  ok('ha dica de acao para as acoes principais', acoesComDica.length >= 12,
+    `${acoesComDica.length}`);
+  ok('toda dica de acao aparece uma vez so',
+    acoesComDica.every(([, d]) => d.vezes === 1));
+  ok('nenhuma dica de evento pausa',
+    ['florada', 'encomenda', 'vespa', 'inverno', 'formigas', 'tempo', 'enxame']
+      .every((id) => !DICAS[id].pausa));
+
+  // Escalar a primeira coletora e o momento em que o jogo precisa explicar a
+  // viagem e o silo — e parar o relogio, porque o jogador decidiu sem saber.
+  const novato = novoJogo(42);
+  novato.velocidade = 3;
+  A.alocar(novato, 'campainhas', 'nectar', 1);
+  ok('a primeira coletora abre a dica', dicaAtiva(novato)?.id === 'acaoNectar');
+  ok('e o jogo para', novato.velocidade === 0);
+  ok('guardando a velocidade de antes', novato.velocidadeAntesDaDica === 3);
+  ok('dicaPausada avisa quem trata o toque', dicaPausada(novato) === true);
+  fecharDica(novato);
+  ok('fechar devolve a velocidade', novato.velocidade === 3);
+  ok('e limpa a guarda', novato.velocidadeAntesDaDica === null);
+
+  A.alocar(novato, 'campainhas', 'nectar', 1);
+  ok('a mesma dica nao volta', dicaAtiva(novato) === null);
+
+  // Polen tem dica propria: e uma dinamica diferente da do nectar.
+  const comFolga = novoJogo(42);
+  for (let i = 0; i < 6; i++) A.nascerAbelha(comFolga);
+  A.alocar(comFolga, 'campainhas', 'polen', 1);
+  ok('polen tem dica propria', dicaAtiva(comFolga)?.id === 'acaoPolen');
+
+  // Acao recusada nao explica nada nem para o jogo.
+  const semAbelhas = novoJogo(1);
+  const recusa = A.alocar(semAbelhas, 'campainhas', 'nectar', 99);
+  ok('acao recusada nao abre dica', !recusa.ok && dicaAtiva(semAbelhas) === null);
+  ok('nem para o relogio', semAbelhas.velocidade === 1);
+
+  // O tutorial ja explica passo a passo: duas explicacoes por cima e pior.
+  const aprendiz3 = novoJogo(7);
+  comecarTutorial(aprendiz3);
+  A.alocar(aprendiz3, 'campainhas', 'nectar', 1);
+  ok('o tutorial silencia as dicas', dicaAtiva(aprendiz3) === null);
+  ok('e nao para o jogo', aprendiz3.velocidade === 1);
+
+  // Recarregar no meio nao pode deixar a colmeia parada pra sempre.
+  const salvoParado = novoJogo(9);
+  salvoParado.velocidade = 6;
+  A.alocar(salvoParado, 'campainhas', 'nectar', 1);
+  const voltouSalvo = S.desserializar(JSON.parse(JSON.stringify(S.serializar(salvoParado))));
+  ok('a dica sobrevive ao save', dicaAtiva(voltouSalvo)?.id === 'acaoNectar');
+  ok('ainda parada', voltouSalvo.velocidade === 0);
+  fecharDica(voltouSalvo);
+  ok('e devolve a velocidade certa depois do save', voltouSalvo.velocidade === 6);
+
+  // Fim de partida para o jogo por conta propria: fechar a dica nao destrava.
+  const perdida = novoJogo(3);
+  A.alocar(perdida, 'campainhas', 'nectar', 1);
+  perdida.derrota = { ano: 1, meta: 9, vendido: 0 };
+  perdida.velocidade = 0;
+  fecharDica(perdida);
+  ok('fechar a dica nao ressuscita partida perdida', perdida.velocidade === 0);
+
+  // Vender e colher tambem explicam.
+  const vendedor = novoJogo(5);
+  vendedor.pote.silvestre = 3;
+  A.vender(vendedor, 'silvestre', relogio(0).estacao, 1);
+  ok('vender explica a meta', dicaAtiva(vendedor)?.id === 'acaoVender');
+
+  // O cartao precisa continuar visivel com painel aberto: alocar acontece
+  // dentro do painel de campos, e dica invisivel + relogio parado e travamento.
+  const fonteDica = await (await fetch('/src/ui/dicas.js')).text();
+  ok('a dica de acao desenha por cima do painel',
+    fonteDica.includes('ui.painel && !dica.pausa'));
+  ok('e escurece o fundo', fonteDica.includes('dica.pausa') && fonteDica.includes('fillRect(0, 0, L, A)'));
+  const fonteDoMain = await (await fetch('/src/main.js')).text();
+  ok('qualquer toque fecha a dica que pausou', fonteDoMain.includes('dicaPausada(estado)'));
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

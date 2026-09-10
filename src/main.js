@@ -11,7 +11,7 @@ import {
   alimentarNinhada, avisar, recolherTodas, alugar, misturar,
 } from './sim/acoes.js';
 import { escolherBencao } from './sim/bencaos.js';
-import { fecharDica } from './sim/dicas.js';
+import { fecharDica, dicaPausada } from './sim/dicas.js';
 import { coroarRainha } from './sim/acoes.js';
 import { vedarEntrada } from './sim/formigas.js';
 import { registrarVitoria, registrarAno } from './core/conquistas.js';
@@ -181,6 +181,13 @@ function aoTocar(x, y) {
     // A dica fica por cima do modal e tem que poder sair da frente.
     if (carta?.id === 'dica:fechar') fecharDica(estado);
     else if (carta?.id === 'bencao:escolher') relatar(escolherBencao(estado, carta.dados.id));
+    return;
+  }
+  // Dica que pausou o jogo: qualquer toque a fecha e nada mais acontece.
+  // Sem isso o jogador acertaria um botão do painel atrás dela com o relógio
+  // parado, que é exatamente o que a pausa existe para impedir.
+  if (dicaPausada(estado)) {
+    fecharDica(estado);
     return;
   }
   const alvo = zonaEm(x, y);

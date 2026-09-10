@@ -1,5 +1,6 @@
 import { ovosDaCelula, sincronizarOvos } from '../core/ovos.js';
 import { relogio } from './estacoes.js';
+import { mostrarDica } from './dicas.js';
 // Ações do jogador. Funções puras sobre o estado, sem canvas e sem eventos —
 // o mesmo caminho serve pro clique, pro tutorial e pros testes de economia.
 // Toda ação devolve { ok, motivo } para a UI dar retorno sem duplicar regra.
@@ -40,6 +41,7 @@ export function comprarCelula(estado, celula) {
   celula.cura = 0;
 
   abrirVizinhas(estado, celula);
+  mostrarDica(estado, 'acaoCelula');
   return sucesso({ preco });
 }
 
@@ -66,6 +68,7 @@ export function colher(estado, celula) {
   celula.potes = 0;
 
   ganharXp(estado, XP.porColheita * potes);
+  mostrarDica(estado, 'acaoColher');
   return sucesso({ variedade, potes });
 }
 
@@ -78,6 +81,7 @@ export function misturar(estado) {
   }
   for (const v of MISTURA.entrada) estado.pote[v] -= 1;
   estado.pote[MISTURA.saida] = (estado.pote[MISTURA.saida] ?? 0) + 1;
+  mostrarDica(estado, 'acaoMisturar');
   return sucesso({ variedade: MISTURA.saida });
 }
 
@@ -103,6 +107,7 @@ export function vender(estado, variedade, estacao, quantidade = Infinity) {
 
   // Entregar encomenda é vender: quem vende não precisa saber que ela existe.
   const recompensa = registrarEntrega(estado, variedade, n);
+  mostrarDica(estado, 'acaoVender');
   return sucesso({ n, valor, recompensa });
 }
 
@@ -130,6 +135,10 @@ export function alocar(estado, campoId, tipo, delta) {
   if (delta > 0 && reservadas + delta > operarias) return falha('Você não tem abelhas suficientes.');
 
   campo[chaveTipo] = alvo;
+
+  // Primeira vez que o jogador escala alguém: a viagem e o silo são a
+  // dinâmica inteira do jogo, e até aqui nada explicava nenhum dos dois.
+  if (delta > 0) mostrarDica(estado, tipo === 'polen' ? 'acaoPolen' : 'acaoNectar');
 
   // Ao reduzir, manda de volta pra colmeia as que sobraram desse recurso.
   if (delta < 0) {
@@ -164,6 +173,7 @@ export function coroarRainha(estado) {
   estado.rainhaDesde = estado.decorrido + RAINHA.interregno;
   estado.interregno = RAINHA.interregno;
   estado.proximaPostura = RAINHA.interregno;
+  mostrarDica(estado, 'acaoRainha');
   return sucesso();
 }
 
@@ -190,6 +200,7 @@ export function recolherTodas(estado) {
     }
   }
   if (!recolhidas && !voltando) return falha('Não há ninguém nos campos.');
+  mostrarDica(estado, 'acaoRecolher');
   return sucesso({ recolhidas, voltando });
 }
 
@@ -206,6 +217,7 @@ export function comprarUpgrade(estado, campoId, upgradeId) {
 
   estado.moedas -= custo;
   campo.upgrades[upgradeId] = nivel + 1;
+  mostrarDica(estado, 'acaoUpgrade');
   return sucesso({ nivel: nivel + 1, custo });
 }
 
@@ -232,6 +244,7 @@ export function alimentarNinhada(estado, celula, potes = 1, ovoId = null) {
     resta -= tira;
   }
 
+  mostrarDica(estado, 'acaoNinhada');
   ovo.cura += gastar * NINHADA.avancoPorMel;
   sincronizarOvos(celula);
   if (ovo.cura >= 1) {
@@ -260,6 +273,7 @@ export function alugar(estado) {
   livre.restaAluguel = ALUGUEL.duracao;
   livre.campo = null;
   livre.t = 0;
+  mostrarDica(estado, 'acaoAlugar');
   return sucesso();
 }
 
@@ -272,6 +286,7 @@ export function aplicarBoost(estado, id) {
   for (const [medidor, delta] of Object.entries(boost.delta ?? {})) {
     estado.clima[medidor] += delta;
   }
+  mostrarDica(estado, 'acaoBoost');
   if (boost.duracao) {
     estado.turbo = { resta: boost.duracao, multiplicador: boost.multiplicador ?? 1 };
   }

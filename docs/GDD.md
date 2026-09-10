@@ -671,3 +671,58 @@ operárias estão reservadas para campos e manda tirar uma do néctar.
 
 > A regra do jogo não mudou — só deixou de ser invisível para quem está
 > aprendendo.
+
+### 9.20 Dicas de ação — o jogo para para explicar
+
+As dicas de primeira vez (§ 8.9, § 9.11) explicavam só o que o **mundo** fazia:
+florada, encomenda, vespa, formiga. Nada explicava o que o **jogador** fazia.
+Quem clicava no `+` do néctar não tinha como saber que a abelha ia viajar, nem
+que néctar sem pólen não vira mel.
+
+Agora `DICAS` tem duas famílias, e a diferença entre elas é o que decide se o
+relógio para:
+
+| família | pausa? | por quê |
+| --- | --- | --- |
+| evento | não | explica algo que está acontecendo **agora**; parar seria contraditório |
+| ação | **sim** | o jogador acabou de decidir sem conhecer a regra, e merece ler antes de o relógio cobrar |
+
+São doze dicas de ação, uma para cada coisa que o jogador pode fazer pela
+primeira vez: mandar coletora de néctar, mandar buscar pólen, colher, vender,
+comprar célula, melhorar campo, alimentar a ninhada, coroar rainha, alugar
+abelha, misturar mel, recolher todas e usar boost.
+
+Elas aparecem **uma vez só** (`vezes: 1`): uma janela que para o jogo não pode
+virar rotina.
+
+#### O que a pausa exigiu
+
+Pausar não é só `velocidade = 0`. Quatro coisas quebrariam sem cuidado:
+
+- **Devolver a velocidade certa.** Quem estava em 6× tem que voltar para 6×, não
+  para 1×. `velocidadeAntesDaDica` guarda o valor, e vai no save — sem isso,
+  recarregar a página com uma dica aberta deixaria a colmeia parada para sempre.
+- **Não ressuscitar partida perdida.** Derrota, vitória e a escolha da primavera
+  param o jogo por conta própria. Fechar a dica não devolve a velocidade em
+  nenhum desses casos.
+- **Continuar visível com painel aberto.** Escalar uma turma acontece *dentro*
+  do painel de campos. O cartão de dica se escondia quando havia painel — uma
+  dica invisível com o relógio parado é um travamento. Agora a de ação desenha
+  por cima de tudo, e escurece o fundo para contar que parou.
+- **Qualquer toque fecha.** Enquanto a dica segura o relógio, o toque não chega
+  ao jogo: fecharia acertando um botão do painel atrás dela, que é exatamente o
+  que a pausa existe para impedir.
+
+#### E o tutorial?
+
+O tutorial guiado (§ 9.19) manda fazer justamente estas ações. Duas explicações
+uma por cima da outra é pior que uma, então enquanto `estado.tutorial` existe
+`mostrarDica` não abre nada. Quem faz o tutorial aprende por ele; quem pula
+aprende por estas dicas.
+
+#### Detalhe de desenho
+
+O rodapé "o jogo está parado · toque para continuar" é a linha mais larga do
+cartão e a única que não passa pelo `maxWidth` do `fillText`. No retrato ele
+saía cortado nas duas pontas. O cartão agora se mede por ele, com
+`larguraRotulo`, e encolhe a fonte proporcionalmente se ainda assim não couber.
