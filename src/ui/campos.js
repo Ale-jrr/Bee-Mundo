@@ -242,8 +242,8 @@ function desenharCampo(ctx, estado, pal, campo, x, y, l, m) {
   });
 
   const turmaY = y + (m.compacto ? 130 : 88);
-  desenharTurma(ctx, pal, campo, 'nectar', x + p, turmaY, l - p * 2, m);
-  desenharTurma(ctx, pal, campo, 'polen', x + p, turmaY + 44, l - p * 2, m);
+  desenharTurma(ctx, estado, pal, campo, 'nectar', x + p, turmaY, l - p * 2, m);
+  desenharTurma(ctx, estado, pal, campo, 'polen', x + p, turmaY + 44, l - p * 2, m);
 
   const livres = vagasDoCampo(campo, estado) - campo.alocadas - campo.polenAlocadas;
   rotulo(ctx, livres === 1 ? '1 vaga livre' : `${livres} vagas livres`, x + p, turmaY + 94, {
@@ -259,7 +259,9 @@ function desenharCampo(ctx, estado, pal, campo, x, y, l, m) {
 
 // Uma linha de turma: [-] ●●○○ [+] com o rótulo do recurso. O espaçamento dos
 // slots se ajusta à largura, porque o Vale das Acácias tem seis.
-function desenharTurma(ctx, pal, campo, tipo, x, y, largura, m) {
+// Recebe `estado` porque as vagas do campo dependem do tamanho do favo
+// (`vagasDoCampo`), não só do catálogo e dos upgrades.
+function desenharTurma(ctx, estado, pal, campo, tipo, x, y, largura, m) {
   const n = tipo === 'polen' ? campo.polenAlocadas : campo.alocadas;
   const a = 34;
   const texto = tipo === 'polen' ? 'pólen' : 'néctar';

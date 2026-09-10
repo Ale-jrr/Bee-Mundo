@@ -347,24 +347,35 @@ export function xpParaNivel(nivel) {
 export const PRESENTE_DO_ANO = { min: 2, max: 3 };
 
 export const META = {
-  anoBase: 1,
-  // 9: o Ano 2 é onde a colônia ainda é minúscula e qualquer perda de ritmo
-  // vira derrota. Com 11 e depois 10, duas em cada sete sementes morriam lá.
-  valorBase: 9,
-  // Acompanha a velocidade do campo, que já mudou algumas vezes: 1,55 na coleta
-  // original, 1,60 com a viagem em 48 s, e 1,78 agora que ela caiu para 28 s e
-  // a produção quase triplicou. Sem subir, o Ano 9 pedia 387 contra 1.100
-  // produzidos — vitória sem disputa.
-  crescimento: 1.78,
-  // Sobreviver a este ano vence o jogo. Nove anos são ~36 min de jogo e é até
-  // onde a economia sustenta: com 15, a meta passava da produção no Ano 9 e o
-  // jogo era invencível.
+  // Sobreviver a este ano vence o jogo.
   anoFinal: 9,
+
+  // Meta de cada ano, em moedas vendidas.
+  //
+  // É uma **tabela**, e não mais uma progressão geométrica, porque a produção
+  // não é geométrica: ela quadruplica do Ano 1 para o 2, dobra até o Ano 4 e
+  // depois estabiliza. Uma curva só não acompanha as duas fases — com
+  // `valorBase 9` e `crescimento 1,78` a folga medida ia de **34× no Ano 2 a
+  // 0,9× no Ano 9**: seis anos sem disputa nenhuma e um muro no fim.
+  //
+  // Cada número é a produção medida do jogador-robô dividida por ~1,4, depois
+  // arredondado e forçado a subir todo ano (meta que cai de um ano para o
+  // outro parece defeito, mesmo quando a produção cai). Ver docs/BALANCE.md.
+  //
+  // Resultado: folga entre 1,3× e 1,5× em **todos** os nove anos. Nenhum ano
+  // de graça, e o último é o mais apertado.
+  porAno: [70, 280, 620, 1150, 1500, 1700, 1900, 2050, 2200],
 };
 
 export function metaDoAno(ano) {
-  if (ano <= 1) return META.valorBase;
-  return Math.round(META.valorBase * Math.pow(META.crescimento, ano - META.anoBase));
+  const i = Math.max(1, Math.round(ano)) - 1;
+  if (i < META.porAno.length) return META.porAno[i];
+  // Além da tabela: segue no ritmo do último degrau. Não acontece no jogo
+  // como ele é hoje (a vitória vem no Ano 9), mas um desafio que aumente
+  // `anoFinal` não pode cair num `undefined`.
+  const [penultima, ultima] = META.porAno.slice(-2);
+  const ritmo = ultima / penultima;
+  return Math.round(ultima * ritmo ** (i - META.porAno.length + 1));
 }
 
 export function precoDaCelula(compradas) {

@@ -1,6 +1,6 @@
 import { novoJogo } from '../src/core/estado.js';
 import { passo } from '../src/sim/tick.js';
-import { relogio } from '../src/sim/estacoes.js';
+import { relogio, SEGUNDOS_POR_ESTACAO } from '../src/sim/estacoes.js';
 import { serializar, desserializar } from '../src/core/save.js';
 import {
   VESPAS, atualizarPredadores, enviarGuarda, defensoras, vespasSemDefesa,
@@ -135,8 +135,8 @@ export async function rodar() {
 
   // ------------------------------------------------------------- inverno
   const gelado = novoJogo(42);
-  gelado.decorrido = 180;
-  atualizarPredadores(gelado, relogio(180), 1 / 30);
+  gelado.decorrido = SEGUNDOS_POR_ESTACAO * 3;
+  atualizarPredadores(gelado, relogio(gelado.decorrido), 1 / 30);
   ok('sem vespas no inverno', !gelado.ameaca);
 
   // ------------------------------------------ mais vespas conforme os anos

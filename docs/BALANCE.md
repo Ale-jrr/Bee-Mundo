@@ -1092,3 +1092,62 @@ Isso põe o Ano 1 e o Ano 9 os dois perto de 1,6. O meio (Anos 3 a 6) ainda
 ficaria frouxo, porque a produção é irregular ali — uma progressão geométrica
 não acompanha uma curva com barriga. Se depois de medir o meio continuar
 solto, o ajuste é na produção do meio, não na meta.
+
+## Parte 2: ano mais longo e meta em tabela
+
+Duas mudanças juntas, nessa ordem — alongar o ano muda a produção, então
+ajustar a meta antes seria trabalho jogado fora.
+
+### O ano ficou mais longo
+
+`SEGUNDOS_POR_ESTACAO`: 60 → **90**. O ano passa a ter 6 minutos e a partida
+inteira, 54 (contra 36). A 60 cada decisão mal tinha tempo de mostrar
+consequência: mandar uma turma pro campo e ver o resultado gastava um quarto
+da estação.
+
+Quase tudo deriva dessa constante (fome do inverno, prazo de encomenda, idade
+da rainha), então a produção média por ano saltou de
+`53, 123, 314, 231, 670, 1182, 1899, 1601, 1487` para
+`101, 400, 890, 1763, 2290, 2324, 2700, 2820, 2861`.
+
+Quatro arquivos de teste tinham o calendário escrito na mão (`decorrido = 180`
+para o inverno, `30 * 245` para a virada do ano). Passaram a derivar da
+constante — senão mediriam o outono achando que mediam o inverno.
+
+### A meta virou tabela
+
+```js
+META.porAno = [70, 280, 620, 1150, 1500, 1700, 1900, 2050, 2200]
+```
+
+Progressão geométrica não servia: a produção **quadruplica** do Ano 1 para o
+2, dobra até o Ano 4 e depois **estabiliza**. Uma curva só não acompanha as
+duas fases — era isso que produzia 34× de folga no Ano 2 e 0,9× no Ano 9.
+
+Cada número é a produção medida dividida por ~1,4, arredondada e forçada a
+subir todo ano (meta que cai parece defeito, mesmo quando a produção cai).
+
+### Resultado: folga por ano, 6 sementes
+
+| semente | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 42 | 1,44 | 1,97 | 1,16 | 1,31 | 1,62 | 1,26 | 1,43 | 1,39 | 1,29 |
+| 7 | 1,49 | 1,25 | 1,48 | 1,68 | 1,43 | 1,32 | 1,40 | 1,31 | 1,29 |
+| 123 | 1,51 | 1,27 | 1,51 | 1,76 | 1,68 | 1,54 | 1,71 | 1,71 | 1,31 |
+| 2024 | 1,38 | 1,42 | 1,62 | 1,46 | 1,28 | 1,31 | 1,44 | 1,27 | 1,35 |
+| 99 | 1,43 | 1,48 | 1,29 | 1,60 | 1,54 | 1,53 | 1,22 | 1,18 | 1,48 |
+| 5 | 1,41 | 1,19 | 1,55 | 1,39 | 1,62 | 1,24 | 1,32 | 1,38 | 1,09 |
+
+**Tudo entre 1,09 e 1,97**, contra 0,89 a 34,4 antes. Nenhum ano de graça e
+nenhum muro. 6/6 vitórias — mas com margem de ~1,4, o que significa que um
+jogador pior que o robô perde, e perde num ano qualquer, não sempre no nono.
+
+### Como refazer isto
+
+Ao mexer em qualquer coisa que afete produção, refaça a tabela:
+
+1. `(await import('/testes/robo.js')).jogarPartida(semente)` em algumas
+   sementes, e tire a média de `porAno[].vendido`;
+2. divida cada ano pela folga-alvo (1,4 hoje);
+3. arredonde e force a subir;
+4. rode `medirBalanco` e confira que a folga ficou na faixa.

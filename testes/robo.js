@@ -1,6 +1,6 @@
 import { novoJogo, celulasArray } from '../src/core/estado.js';
 import { passo } from '../src/sim/tick.js';
-import { relogio } from '../src/sim/estacoes.js';
+import { relogio, SEGUNDOS_POR_ANO } from '../src/sim/estacoes.js';
 import { ovosDaCelula } from '../src/core/ovos.js';
 import {
   colher, vender, alocar, recolherTodas, comprarCelula, comprarUpgrade,
@@ -65,10 +65,11 @@ export const PADRAO = {
   // Encomenda guardiã enquanto a colmeia tiver menos que isto.
   guardiasDesejadas: (ano) => (ano >= 7 ? 3 : ano >= 4 ? 2 : 1),
   segundosPorDecisao: 0.5,
-  // Teto de segurança: 12 minutos de jogo é mais que os 9 anos de 36 min?
-  // Não — nove anos são 2160 s. Este teto existe só para o laço nunca ficar
-  // preso se o jogo travar.
-  tetoSegundos: 60 * 60,
+  // Teto de segurança: existe só para o laço nunca ficar preso se o jogo
+  // travar. Derivado do calendário, e não um número fixo, porque alongar a
+  // estação passaria a cortar a partida no meio sem ninguém notar — o
+  // resultado sairia como "inconclusivo" e eu iria procurar bug no jogo.
+  tetoSegundos: SEGUNDOS_POR_ANO * (META.anoFinal + 1),
 };
 
 // Preferência entre bênçãos. Não é ótimo — é estável, que é o que importa
@@ -396,6 +397,17 @@ export async function rodar() {
   ok('o historico tem uma linha por ano jogado',
     inteira.porAno.length === (inteira.venceu ? META.anoFinal : inteira.anoFinal),
     `${inteira.porAno.length} linhas, ano ${inteira.anoFinal}`);
+
+  // A tabela da meta e o que faz a folga ser uniforme. Invariantes baratas:
+  // uma linha por ano, sempre subindo, e nada de `undefined` fora dela.
+  ok('a tabela da meta cobre todos os anos', META.porAno.length === META.anoFinal,
+    `${META.porAno.length} de ${META.anoFinal}`);
+  ok('e a meta nunca cai de um ano pro outro',
+    META.porAno.every((v, i) => i === 0 || v > META.porAno[i - 1]),
+    META.porAno.join(','));
+  ok('metaDoAno le a tabela',
+    metaDoAno(1) === META.porAno[0] && metaDoAno(META.anoFinal) === META.porAno.at(-1));
+  ok('e nao quebra depois do ultimo ano', Number.isFinite(metaDoAno(META.anoFinal + 3)));
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

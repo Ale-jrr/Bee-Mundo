@@ -5,6 +5,7 @@
 // que é determinístico, então falha aqui é falha de verdade.
 
 import * as S from '../src/core/save.js';
+import { SEGUNDOS_POR_ANO } from '../src/sim/estacoes.js';
 import { novoJogo, celulasArray, consumirPolen } from '../src/core/estado.js';
 import { passo } from '../src/sim/tick.js';
 import * as A from '../src/sim/acoes.js';
@@ -161,7 +162,7 @@ export function rodar() {
   const meio = jogarAte(60);
   meio.ano = 2;
   meio.vendidoNoAno = metaDoAno(2) + 1;
-  meio.decorrido = 2 * 240 - 0.5;
+  meio.decorrido = 2 * SEGUNDOS_POR_ANO - 0.5;
   for (let i = 0; i < 60; i++) passo(meio, 1 / 30);
   ok('ano intermediário não vence', meio.vitoria === null && meio.ano === 3,
     `ano ${meio.ano}`);

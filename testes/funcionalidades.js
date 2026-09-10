@@ -1168,7 +1168,7 @@ export async function rodar() {
   anoNovo.vendidoNoAno = 9999;
   const abertasAntes = abertasDe(anoNovo);
   const compradasAntes = anoNovo.celulasCompradas;
-  for (let i = 0; i < 30 * 245 && anoNovo.ano === 1; i++) passo(anoNovo, 1 / 30);
+  for (let i = 0; i < 30 * (SEGUNDOS_POR_ANO + 5) && anoNovo.ano === 1; i++) passo(anoNovo, 1 / 30);
   const ganhou = abertasDe(anoNovo) - abertasAntes;
   ok('virar o ano da celulas', anoNovo.ano === 2 && ganhou > 0, `${ganhou}`);
   ok('entre 2 e 3 celulas', ganhou >= PRESENTE_DO_ANO.min && ganhou <= PRESENTE_DO_ANO.max,
@@ -1186,7 +1186,7 @@ export async function rodar() {
   const perdeuNoAno = novoJogo(42);
   perdeuNoAno.vendidoNoAno = 0;
   const abertasPerdedor = abertasDe(perdeuNoAno);
-  for (let i = 0; i < 30 * 245 && !perdeuNoAno.derrota; i++) passo(perdeuNoAno, 1 / 30);
+  for (let i = 0; i < 30 * (SEGUNDOS_POR_ANO + 5) && !perdeuNoAno.derrota; i++) passo(perdeuNoAno, 1 / 30);
   ok('quem perde nao ganha celula',
     perdeuNoAno.derrota !== null && abertasDe(perdeuNoAno) === abertasPerdedor);
 

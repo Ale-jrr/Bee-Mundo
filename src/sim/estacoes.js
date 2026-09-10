@@ -1,7 +1,15 @@
 // Ciclo de estações. Os modificadores são DISCRETOS: mudam de golpe na virada.
 // Só a paleta transiciona de forma contínua (ver render/paleta.js).
 
-export const SEGUNDOS_POR_ESTACAO = 60;
+// Duração da estação. Subiu de 60 para 90: a 60 a partida inteira cabia em 36
+// minutos e cada ano passava rápido demais pra decisão ter consequência
+// visível — mandar uma turma pro campo e ver o resultado levava um quarto da
+// estação. Com 90 o ano tem 6 minutos e os nove anos, 54.
+//
+// Quase tudo deriva daqui (fome de inverno, prazo de encomenda, idade da
+// rainha), então mexer neste número remexe o balanço inteiro — ver
+// docs/BALANCE.md para a medição de antes e depois.
+export const SEGUNDOS_POR_ESTACAO = 90;
 export const SEGUNDOS_POR_ANO = SEGUNDOS_POR_ESTACAO * 4;
 
 // `produtividade` é o rendimento da estação de ponta a ponta. A primavera é o
