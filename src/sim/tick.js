@@ -16,7 +16,7 @@ import { fatorColeta, fatorProducao, fatorRisco, melhorPara } from './talentos.j
 import { relogio, fatorDeColeta, fatorDoFavo } from './estacoes.js';
 import {
   CLIMA, CELULA, ABELHA, NINHADA, ALUGUEL, MERCADO, VARIEDADES, SILO, FEROMONIO,
-  VOO, META, PASSEIO, TRABALHO, saudeDoClima, metaDoAno,
+  VOO, META, PASSEIO, TRABALHO, PRESENTE_DO_ANO, saudeDoClima, metaDoAno,
 } from './economia.js';
 import {
   limitarClima, celulaLivre, celulaParaPostura, celulasArray,
@@ -24,7 +24,7 @@ import {
 } from '../core/estado.js';
 import { distancia, chave, daChave } from './hex.js';
 import { sortear } from '../core/rng.js';
-import { eclodirNinhada } from './acoes.js';
+import { eclodirNinhada, liberarCelula } from './acoes.js';
 
 // Um passo de simulação de tamanho fixo. Puro sobre o estado.
 // Nada aqui pode depender de framerate, de canvas ou de input.
@@ -622,6 +622,21 @@ function atualizarNinhada(estado, dt) {
   }
 }
 
+// Células de graça na virada do ano. Sorteia entre as travadas que já estão
+// à vista — são sempre vizinhas do que a colmeia já tem, então o favo cresce
+// pela borda, do mesmo jeito que cresce comprando.
+function presentearCelulas(estado) {
+  const { min, max } = PRESENTE_DO_ANO;
+  const quantas = min + Math.floor(sortear(estado) * (max - min + 1));
+  let dadas = 0;
+  for (let i = 0; i < quantas; i++) {
+    const travadas = celulasArray(estado).filter((c) => c.estado === 'travada');
+    if (!travadas.length) break;
+    if (liberarCelula(estado, travadas[Math.floor(sortear(estado) * travadas.length)])) dadas++;
+  }
+  return dadas;
+}
+
 function virarAno(estado, t) {
   if (t.ano === estado.ano) return;
 
@@ -648,6 +663,19 @@ function virarAno(estado, t) {
 
   estado.ano = t.ano;
   estado.vendidoNoAno = 0;
+
+  // Presente do ano: o favo cresce por ter sobrevivido, não só por ter
+  // dinheiro. Vem antes da bênção de propósito — o aviso fica na tela
+  // enquanto o jogador escolhe a carta, que é quando ele está olhando.
+  const ganhas = presentearCelulas(estado);
+  if (ganhas) {
+    estado.aviso = {
+      texto: ganhas === 1 ? 'A colmeia ganhou 1 célula nova.'
+        : `A colmeia ganhou ${ganhas} células novas.`,
+      expira: estado.decorrido + 8,
+    };
+    mostrarDica(estado, 'presenteDoAno');
+  }
 
   // Ano novo começa na primavera: é aqui que a colônia escolhe pra onde vai
   // crescer. Depois da vitória e da derrota de propósito — não faz sentido

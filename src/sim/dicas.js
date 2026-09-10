@@ -101,6 +101,18 @@ export const DICAS = {
     ],
   },
 
+  presenteDoAno: {
+    titulo: 'o favo cresceu',
+    vezes: 2,
+    linhas: [
+      'Passar de ano dá células novas à colmeia, de graça.',
+      'Elas não contam como compra: o preço da próxima',
+      'célula que você comprar continua o mesmo.',
+      'Mais favo é mais espaço pra mel, pra ninhada e pra',
+      'pólen — e menos pressão de enxame.',
+    ],
+  },
+
   // ------------------------------------------------- ações do jogador
   // Todas com `pausa: true` e `vezes: 1`.
   acaoNectar: {
@@ -265,6 +277,18 @@ export function mostrarDica(estado, id) {
   const vistas = estado.dicasVistas[id] ?? 0;
   if (vistas >= regra.vezes) return false;
 
+  // Uma dica de cada vez, e as outras esperam numa fila. Na virada do ano
+  // chegam três no mesmo quadro — inverno saindo, presente de células e bênção
+  // da primavera. Sem fila a última apagava as anteriores; com um só lugar na
+  // fila, a última apagava a que estava esperando.
+  if (estado.dica && estado.dica !== id) {
+    estado.filaDeDicas = [...(estado.filaDeDicas ?? [])];
+    if (!estado.filaDeDicas.includes(id) && estado.filaDeDicas.length < 4) {
+      estado.filaDeDicas.push(id);
+    }
+    return false;
+  }
+
   estado.dicasVistas[id] = vistas + 1;
   estado.dica = id;
 
@@ -282,14 +306,22 @@ export function fecharDica(estado, id = null) {
   if (id && estado.dica !== id) return;
   const pausada = DICAS[estado.dica]?.pausa;
   estado.dica = null;
-  if (!pausada) return;
 
-  const antes = estado.velocidadeAntesDaDica;
-  estado.velocidadeAntesDaDica = null;
-  // Fim de partida e escolha da primavera param o jogo por conta própria:
-  // devolver a velocidade aqui destravaria uma colmeia que já acabou.
-  if (estado.derrota || estado.vitoria || estado.escolha) return;
-  if (typeof antes === 'number') estado.velocidade = antes;
+  if (pausada) {
+    const antes = estado.velocidadeAntesDaDica;
+    estado.velocidadeAntesDaDica = null;
+    // Fim de partida e escolha da primavera param o jogo por conta própria:
+    // devolver a velocidade aqui destravaria uma colmeia que já acabou.
+    const travadoPorOutro = estado.derrota || estado.vitoria || estado.escolha;
+    if (!travadoPorOutro && typeof antes === 'number') estado.velocidade = antes;
+  }
+
+  // A próxima da fila entra agora, depois de a velocidade já ter voltado —
+  // senão ela guardaria o zero desta como "velocidade de antes".
+  const fila = [...(estado.filaDeDicas ?? [])];
+  const proxima = fila.shift();
+  estado.filaDeDicas = fila;
+  if (proxima) mostrarDica(estado, proxima);
 }
 
 export function dicaAtiva(estado) {

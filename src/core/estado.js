@@ -100,6 +100,7 @@ export function novoJogo(semente = Date.now() & 0xffffffff, desafio = DESAFIO_PA
     tutorial: null,            // { passo, marca } durante o tutorial guiado
     dica: null,                // id da dica de primeira vez em exibição
     velocidadeAntesDaDica: null, // velocidade guardada enquanto a dica pausa
+    filaDeDicas: [],           // dicas esperando a da tela sair
     dicasVistas: {},           // id -> quantas vezes já apareceu
     bencaos: {},               // id da bênção -> nível escolhido
     escolha: null,             // { opcoes: [id, id, id] } enquanto o jogador decide

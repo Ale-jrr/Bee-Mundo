@@ -35,14 +35,21 @@ export function comprarCelula(estado, celula) {
 
   estado.moedas -= preco;
   estado.celulasCompradas += 1;
+  liberarCelula(estado, celula);
+  mostrarDica(estado, 'acaoCelula');
+  return sucesso({ preco });
+}
+
+// Abre uma célula travada, sem cobrar nada. Separado de `comprarCelula`
+// porque a virada do ano também dá células, e ali não há preço nem compra.
+export function liberarCelula(estado, celula) {
+  if (!celula || celula.estado !== 'travada') return false;
   celula.estado = 'vazia';
   celula.variedade = null;
   celula.nectar = 0;
   celula.cura = 0;
-
   abrirVizinhas(estado, celula);
-  mostrarDica(estado, 'acaoCelula');
-  return sucesso({ preco });
+  return true;
 }
 
 // Comprar uma célula revela as vizinhas ainda desconhecidas — é assim que o

@@ -40,7 +40,7 @@ import {
 } from '../src/sim/talentos.js';
 import { campoEmFlorada, statsComFlorada, FLORADA } from '../src/sim/floradas.js';
 import { encomendaAtiva } from '../src/sim/encomendas.js';
-import { VARIEDADES, precoDaCelula } from '../src/sim/economia.js';
+import { VARIEDADES, precoDaCelula, PRESENTE_DO_ANO } from '../src/sim/economia.js';
 import {
   BENCAOS, nivelBencao, totalBencao, bonusBencao, descontoBencao, fatorDoInverno,
   sortearBencaos, escolherBencao, textoDaBencao,
@@ -1140,6 +1140,66 @@ export async function rodar() {
   for (const n of ['CAMPOS', 'MERCADO', 'AVISOS']) {
     ok('o tutorial aponta para ' + n, fonteTut.includes(n));
   }
+
+  // ------------------------------- 29. celulas de presente na virada do ano
+  const abertasDe = (e) => celulasArray(e).filter((c) => c.estado !== 'travada').length;
+  const anoNovo = novoJogo(42);
+  anoNovo.vendidoNoAno = 9999;
+  const abertasAntes = abertasDe(anoNovo);
+  const compradasAntes = anoNovo.celulasCompradas;
+  for (let i = 0; i < 30 * 245 && anoNovo.ano === 1; i++) passo(anoNovo, 1 / 30);
+  const ganhou = abertasDe(anoNovo) - abertasAntes;
+  ok('virar o ano da celulas', anoNovo.ano === 2 && ganhou > 0, `${ganhou}`);
+  ok('entre 2 e 3 celulas', ganhou >= PRESENTE_DO_ANO.min && ganhou <= PRESENTE_DO_ANO.max,
+    `${ganhou}`);
+  ok('o presente nao conta como compra', anoNovo.celulasCompradas === compradasAntes);
+  ok('e o jogador e avisado', /c\u00e9lulas? nova/.test(anoNovo.aviso?.texto ?? ''),
+    anoNovo.aviso?.texto ?? '-');
+
+  // Presente nao pode encarecer o que vem depois: o preco segue o contador de
+  // compras, e ele nao subiu.
+  const precoDepois = precoDaCelula(anoNovo.celulasCompradas);
+  ok('o preco da proxima celula nao subiu', precoDepois === precoDaCelula(compradasAntes));
+
+  // Perder no fim do ano nao da presente nenhum.
+  const perdeuNoAno = novoJogo(42);
+  perdeuNoAno.vendidoNoAno = 0;
+  const abertasPerdedor = abertasDe(perdeuNoAno);
+  for (let i = 0; i < 30 * 245 && !perdeuNoAno.derrota; i++) passo(perdeuNoAno, 1 / 30);
+  ok('quem perde nao ganha celula',
+    perdeuNoAno.derrota !== null && abertasDe(perdeuNoAno) === abertasPerdedor);
+
+  // liberarCelula e o mesmo caminho da compra, sem cobrar.
+  const doador = novoJogo(7);
+  const travadaDoador = celulasArray(doador).find((c) => c.estado === 'travada');
+  const moedasDoDoador = doador.moedas;
+  ok('liberarCelula abre sem cobrar',
+    A.liberarCelula(doador, travadaDoador) === true && travadaDoador.estado === 'vazia'
+    && doador.moedas === moedasDoDoador);
+  ok('e nao abre o que ja esta aberto', A.liberarCelula(doador, travadaDoador) === false);
+
+  // ----------------------------------------------- filaTeste de dicas
+  const filaTeste = novoJogo(11);
+  mostrarDica(filaTeste, 'florada');
+  mostrarDica(filaTeste, 'vespa');
+  mostrarDica(filaTeste, 'enxame');
+  ok('so uma dica na tela', dicaAtiva(filaTeste)?.id === 'florada');
+  ok('as outras esperam na filaTeste', (filaTeste.filaDeDicas ?? []).join(',') === 'vespa,enxame');
+  fecharDica(filaTeste);
+  ok('fechar puxa a proxima', dicaAtiva(filaTeste)?.id === 'vespa');
+  fecharDica(filaTeste);
+  ok('e depois a seguinte', dicaAtiva(filaTeste)?.id === 'enxame');
+  fecharDica(filaTeste);
+  ok('filaTeste vazia no fim', dicaAtiva(filaTeste) === null && filaTeste.filaDeDicas.length === 0);
+  ok('a filaTeste nao marca como vista quem nao apareceu',
+    (novoJogo(11), true) && filaTeste.dicasVistas.enxame === 1);
+
+  // A filaTeste sobrevive ao save: recarregar nao pode engolir explicacao.
+  const filaSalva = novoJogo(12);
+  mostrarDica(filaSalva, 'florada');
+  mostrarDica(filaSalva, 'vespa');
+  const filaVoltou = S.desserializar(JSON.parse(JSON.stringify(S.serializar(filaSalva))));
+  ok('a filaTeste de dicas sobrevive ao save', (filaVoltou.filaDeDicas ?? []).includes('vespa'));
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

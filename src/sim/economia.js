@@ -307,6 +307,14 @@ export function xpParaNivel(nivel) {
   return Math.round(45 * Math.pow(1.42, nivel - 1));
 }
 
+// Celulas que a colonia ganha ao virar o ano. Comprar deixou de ser o unico
+// jeito de o favo crescer: o jogador que passou o ano merece espaco novo sem
+// pagar por ele, e sem isso a colmeia so cresce na velocidade da carteira.
+//
+// A oferta nao conta como compra (`celulasCompradas` nao sobe), entao o
+// presente nao encarece a proxima celula comprada.
+export const PRESENTE_DO_ANO = { min: 2, max: 3 };
+
 export const META = {
   anoBase: 1,
   // 9: o Ano 2 é onde a colônia ainda é minúscula e qualquer perda de ritmo
