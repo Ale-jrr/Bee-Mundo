@@ -1,0 +1,310 @@
+// Todas as constantes de balanceamento vivem aqui. Nenhum número mágico
+// espalhado pelo resto do código — a curva do jogo se ajusta neste arquivo.
+// Ver docs/BALANCE.md para o raciocínio por trás de cada bloco.
+
+export const VARIEDADES = {
+  silvestre: { nome: 'Flor Silvestre', cor: '#b8484a', base: 6,  volatilidade: 0.06 },
+  acacia:    { nome: 'Acácia',         cor: '#f2e6a8', base: 14, volatilidade: 0.14 },
+  trevo:     { nome: 'Trevo',          cor: '#e07b2c', base: 9,  volatilidade: 0.09 },
+  florada:   { nome: 'Florada',        cor: '#f0b429', base: 11, volatilidade: 0.11 },
+};
+
+export const CLIMA = {
+  temperatura: { ideal: [33, 36], min: 0,   max: 45,   nome: 'temperatura' },
+  co2:         { ideal: [0, 800], min: 300, max: 2000, nome: 'co2' },
+  umidade:     { ideal: [50, 65], min: 0,   max: 100,  nome: 'umidade' },
+  // Abelhas termorregulam nos dois sentidos: aquecem tremendo e resfriam
+  // ventilando. O que elas têm é autoridade limitada — cada abelha em casa
+  // rende alguns graus de correção, até um teto. Fora desse alcance a estação
+  // vence, e é aí que os boosts de clima existem para complementar.
+  grausPorAbelha: 1.4,
+  autoridadeMaxima: 26,
+  // Respirar sobe o CO₂; abanar as asas na entrada o derruba. Como as duas
+  // coisas escalam com a mesma colônia, um favo bem povoado se mantém perto do
+  // limite em vez de asfixiar — mas a ventilação tem teto, então colônia grande
+  // demais volta a sufocar. Sem isso o CO₂ subia sem parar e era ele, não a
+  // produção, que matava o jogo a partir do Ano 7.
+  co2PorAbelha: 22,
+  ventilacaoPorAbelha: 16,
+  ventilacaoMaxima: 950,
+  co2Externo: 400,
+  // Velocidade com que o interior persegue o alvo (por segundo).
+  inercia: 0.06,
+};
+
+export const BOOSTS = {
+  arcondicionado: { nome: 'Ar-Condicionado da Colmeia', custo: 50,  delta: { temperatura: -6 } },
+  aquecer:        { nome: 'Aquecer a Colmeia',          custo: 50,  delta: { temperatura: +6 } },
+  umidificar:     { nome: 'Aumentar Umidade',            custo: 50,  delta: { umidade: +12 } },
+  ventilar:       { nome: 'Ventilar a Colmeia',          custo: 60,  delta: { co2: -220 } },
+  turbinar:       { nome: 'Turbinar Abelhas!',           custo: 100, delta: {}, duracao: 30, multiplicador: 2 },
+};
+
+// Silo de pólen. Não é uma estrutura única: é um estado de célula, igual a
+// néctar ou ninhada. Qualquer hexágono do favo pode virar silo quando chega
+// pólen, e volta a ser célula vazia quando é esvaziado. Como o favo cresce, a
+// capacidade de pólen cresce junto — é assim que a mecânica escala.
+export const SILO = {
+  capacidadePorCelula: 12,
+  // Um silo a cada N células abertas, no mínimo um. Sem este teto o pólen come
+  // o favo: coletoras demais criam silo atrás de silo e não sobra célula pro
+  // néctar. É o teto que faz "quantas abelhas no pólen" ser uma decisão real —
+  // pólen em excesso simplesmente se perde.
+  celulasPorSilo: 6,
+  // Pólen gasto por célula inteira transformada em mel, proporcional ao néctar
+  // que havia ali: meia célula custa meio pólen. Assim encher antes de fechar
+  // não é premiado nem punido, e uma coletora de pólen sustenta ~3 de néctar.
+  polenPorMel: 2,
+  // A coleta de pólen acompanha a taxa do próprio campo, em vez de ser um
+  // número fixo. Com taxa fixa de 3,4/min ela não acompanhava campos de 14/min
+  // e a cura virava o gargalo: uma coletora servia menos de uma de néctar.
+  // Com este fator, uma coletora de pólen sustenta cerca de quatro de néctar —
+  // que é o "apenas uma basta" do começo virando "uma a cada quatro" na escala.
+  fatorPolen: 0.8,
+  // Toda coletora de néctar volta com um pouco de pólen no corpo, como abelha
+  // de verdade: esta fração do pólen que a carga dela vai consumir na cura.
+  // Sem isso a colmeia sem coletora de pólen dedicada parava de fazer mel de
+  // vez — medido, o mel morria aos 236 s e não voltava mais, e a partida ficava
+  // 67% do tempo com uma célula pronta travada por falta de pólen. Com esta
+  // carona nunca para; pôr uma abelha no pólen continua valendo porque leva a
+  // produção de 40% para 100%.
+  polenDeCarona: 0.4,
+};
+
+// Feromônio da rainha: a mensagem química que organiza a colônia. `raio` diz
+// até onde ela alcança no favo; `poder` diz quanto rende dentro do alcance.
+// Conforme o favo cresce além do raio, a cobertura cai e as operárias perdem
+// eficiência — é o custo escondido de expandir.
+export const FEROMONIO = {
+  raio: 2,
+  poder: 0.30,
+};
+
+export const CELULA = {
+  precoBase: 19,
+  precoCrescimento: 1.18,
+  // Três viagens enchem uma célula. Como a abelha pode trabalhar o que já
+  // houver ali, isso vira decisão: curar cedo dá mel agora, esperar encher
+  // dá o triplo pelo mesmo tempo de trabalho.
+  capacidadeNectar: 9,
+  // Segundos para curar néctar cheio em mel, em clima perfeito.
+  segundosCura: 24,
+  // Quanto o clima ruim pode desacelerar a cura, no pior caso.
+  penalidadeMaxCura: 0.15,
+  // Invariante do favo: o pólen precisa sempre ter onde ser guardado. Se
+  // nenhum silo tem espaço, o néctar é obrigado a deixar células livres o
+  // bastante pra um silo novo nascer. Sem isso o jogo trava de vez — favo cheio
+  // de células em cura, pólen zerado, e a cura precisa de pólen pra liberar
+  // célula. Uma reserva fixa não serve: no favo inicial ela impede toda a
+  // produção.
+  reservaSemSilo: 2,
+};
+
+export const ABELHA = {
+  // Néctar que uma operária carrega antes de voltar pra colmeia.
+  // Carga menor = viagem mais curta. Com 5 a coleta sozinha levava 57,7 s e o
+  // campo respondia por 90% da espera por um pote de mel.
+  cargaBase: 3,
+};
+
+// A rainha põe sozinha, mas a eclosão só avança com a temperatura na faixa.
+// É o que amarra o crescimento da colônia ao sistema de clima: mais abelhas
+// esquentam a colmeia, e colmeia quente para de produzir abelhas.
+export const NINHADA = {
+  // Com uma ninhada por vez no favo, o ciclo inteiro (pôr + chocar) é o teto
+  // do crescimento da colônia. Com 20 s + 50 s ela empacava em 4-6 abelhas.
+  segundosPostura: 8,      // intervalo entre posturas da rainha
+  // 45 s porque a ninhada traz até três abelhas de uma vez: com 15 s a colônia
+  // ia a 129 abelhas no Ano 9, contra as 25-56 que o resto do jogo espera.
+  segundosEclosao: 45,     // com temperatura perfeita
+  // Cabem até três abelhas na mesma ninhada. A rainha vai somando enquanto o
+  // ovo não choca, e todas nascem juntas ao fim.
+  porNinhada: 3,
+  tempIdeal: [33, 36],
+  // Abaixo deste ritmo de eclosão a rainha para de pôr. Sem isso ela enche o
+  // favo de ovos que não vingam e a colmeia trava sozinha no inverno.
+  ritmoMinimoParaPor: 0.25,
+  // Fora da faixa a eclosão desacelera até parar de vez.
+  toleranciaGraus: 5,
+  // Alimentar a ninhada: cada pote de mel adianta esta fração da eclosão.
+  // A 0,1 são dez potes para chocar um ovo do zero — na prática o jogador
+  // gasta dois ou três no fim, para não esperar o último pedaço.
+  avancoPorMel: 0.1,
+};
+
+// Passeio das abelhas dentro do favo. É desenho, mas mora na simulação porque
+// a rainha põe ovo na célula onde está — o movimento tem consequência, não é
+// só enfeite.
+// Medido: com 1,6 s por célula e pausas de até 2,6 s, a abelha passava 58% do
+// tempo andando e 26% parada, contra 13% trabalhando — e uma célula levava 14 s
+// pra ficar pronta, sendo que a tarefa em si dura 5 s. Aqui ela anda depressa e
+// a pausa é só um respiro de quem não tem o que fazer.
+export const PASSEIO = {
+  // 0,7 s por célula era corrida demais de se ver. Foi acelerado quando a
+  // tarefa de mel durava 5 s e a caminhada dominava o ciclo; com a tarefa em
+  // 20 s ela é uma fatia pequena e pode voltar a um passo natural.
+  segundosPorCelula: 1.0,
+  // Pausa de quem está sem tarefa. Curta demais e a abelha fica vibrando de um
+  // lado pro outro carregando pólen que não tem onde entregar; é o que dava a
+  // impressão de que ela "carrega e não faz o mel".
+  pausaMin: 1.5,
+  pausaMax: 4,
+};
+
+// O trabalho dentro do favo. A célula não cura mais sozinha: uma operária
+// busca pólen no silo, leva até uma célula cheia de néctar e trabalha nela.
+// Cada visita adianta um pedaço, então o mel passa a depender de quantas
+// abelhas ficam em casa — e não só de quantas saem pro campo.
+export const TRABALHO = {
+  // Pegar o pólen é rápido; fazer o mel é a tarefa visível da colmeia — é a
+  // barrinha que corre em cima da abelha. Cinco segundos: com 20 s ou 15 s o
+  // primeiro pote saía aos 74 s e o mel vinha aos trancos. Uma visita fecha a
+  // célula; não existe cura pela metade.
+  segundosPegarPolen: 1,
+  segundosCurar: 5,
+  polenPorVisita: 1,
+  // Quanto pólen ela traz numa ida ao silo. Como o mel é instantâneo, o que
+  // sobra de caminhada é a ida ao silo — bolsa maior atende mais células por
+  // viagem.
+  capacidadePolen: 6,
+  // A abelha que trabalha também come. A cada 45 s ela larga a tarefa, vai até
+  // uma célula de mel e se alimenta. O mel sai do estoque — então não dá pra
+  // vender tudo: a colmeia precisa da própria reserva pra continuar produzindo.
+  segundosEntreRefeicoes: 45,
+  segundosComendo: 2,
+  melPorRefeicao: 0.06,
+  // Com fome ela não para: fica 50% mais lenta, no trabalho e no passo. Sem
+  // mel no pote a colmeia arrasta, mas não trava.
+  penalidadeFome: 0.5,
+};
+
+// Polinização paga: a abelha sai da colmeia por um tempo e volta com moedas.
+// Compete diretamente com a coleta de néctar pelo mesmo corpo.
+export const ALUGUEL = {
+  duracao: 90,
+  pagamento: 26,
+};
+
+// Passeio aleatório com reversão à média. Nunca foge muito da base, mas
+// segurar estoque esperando a alta é sempre uma aposta.
+export const MERCADO = {
+  reversao: 0.35,          // força do puxão de volta à base, por segundo
+  ruido: 1.8,              // amplitude do choque aleatório
+  minimo: 0.55,
+  maximo: 1.45,
+};
+
+// Catálogo de campos. O estado instancia a partir daqui, então rebalancear um
+// campo não exige tocar no save nem no código do jogo.
+// Risco e recompensa andam juntos: o mel mais caro fica no campo mais longe e
+// mais perigoso. `florada` fica reservada pra mecânica de troca de variedade.
+export const CAMPOS = [
+  {
+    id: 'campainhas', nome: 'Bosque das Campainhas', variedade: 'silvestre',
+    taxa: 17.6, viagem: 5.2, nectarMax: 40, risco: 0, slots: 4, nivelMin: 1,
+    // Uma coletora só: com 2 operárias, a outra fica em casa — visível,
+    // aquecendo o favo e cuidando do mel. O pólen inicial do silo cobre
+    // os primeiros potes até o jogador descobrir a turma de pólen.
+    alocadasInicial: 1, polenInicial: 0,
+    sobre: { bom: 'Seguro e simples, pertinho de casa.', ruim: 'Um ritmo tranquilo.' },
+  },
+  {
+    id: 'treval', nome: 'Treval do Moinho', variedade: 'trevo',
+    taxa: 29.0, viagem: 9, nectarMax: 75, risco: 0.06, slots: 5, nivelMin: 3,
+    alocadasInicial: 0, polenInicial: 0,
+    sobre: { bom: 'Quase o dobro de néctar, e mel mais caro.', ruim: 'Longe — e nem toda abelha volta.' },
+  },
+  {
+    id: 'acacias', nome: 'Vale das Acácias', variedade: 'acacia',
+    taxa: 45.0, viagem: 13, nectarMax: 120, risco: 0.16, slots: 6, nivelMin: 7,
+    alocadasInicial: 0, polenInicial: 0,
+    sobre: { bom: 'A acácia é o mel mais caro da bolsa.', ruim: 'Viagem longa e francamente perigosa.' },
+  },
+];
+
+// Chance de perder a abelha numa volta completa = risco × isto.
+// Vive aqui pra o risco do campo poder ser lido como porcentagem na UI.
+export const VOO = { riscoPorViagem: 0.10 };
+
+// Melhorias de campo. Cada pip é multiplicativo — são elas que precisam vencer
+// a meta composta, já que comprar célula e nascer abelha só crescem linear.
+export const UPGRADES = {
+  sustentavel: { nome: 'Agricultura Sustentável', max: 8, custoBase: 150, crescimento: 1.55, ganho: +0.15 },
+  rota:        { nome: 'Rota de Voo',             max: 8, custoBase: 100, crescimento: 1.50, ganho: -0.10 },
+  ogm:         { nome: 'OGM',                     max: 8, custoBase: 100, crescimento: 1.65, ganho: +0.15 },
+};
+
+export function custoUpgrade(id, nivel) {
+  const u = UPGRADES[id];
+  return Math.round(u.custoBase * Math.pow(u.crescimento, nivel));
+}
+
+// Valores efetivos do campo: o objeto guarda a base, os upgrades derivam.
+// Nada muta o campo, então rebalancear um upgrade não corrompe saves antigos.
+export function statsDoCampo(campo) {
+  const u = campo.upgrades;
+  return {
+    taxa: campo.taxa * (1 + UPGRADES.ogm.ganho * u.ogm),
+    viagem: campo.viagem * Math.pow(1 + UPGRADES.rota.ganho, u.rota),
+    nectarMax: campo.nectarMax * (1 + UPGRADES.sustentavel.ganho * u.sustentavel),
+    risco: campo.risco,
+  };
+}
+
+// O nível precisa destravar o Treval (3) por volta do Ano 2 e o Vale (7) por
+// volta do Ano 5, senão a meta composta passa na frente e o jogo fecha.
+// Calibrado por varredura: com estes valores o Treval abre no Ano 1,3 e o Vale
+// das Acácias no Ano 3,3 — cedo o bastante pra o campo bom ainda importar.
+// Valores mais altos fazem o nível disparar e os desbloqueios perdem sentido.
+export const XP = {
+  porColheita: 16,
+  porMoedaVendida: 3,
+};
+
+export function xpParaNivel(nivel) {
+  return Math.round(45 * Math.pow(1.42, nivel - 1));
+}
+
+export const META = {
+  anoBase: 1,
+  // 9: o Ano 2 é onde a colônia ainda é minúscula e qualquer perda de ritmo
+  // vira derrota. Com 11 e depois 10, duas em cada sete sementes morriam lá.
+  valorBase: 9,
+  // Acompanha a velocidade do campo, que já mudou algumas vezes: 1,55 na coleta
+  // original, 1,60 com a viagem em 48 s, e 1,78 agora que ela caiu para 28 s e
+  // a produção quase triplicou. Sem subir, o Ano 9 pedia 387 contra 1.100
+  // produzidos — vitória sem disputa.
+  crescimento: 1.78,
+  // Sobreviver a este ano vence o jogo. Nove anos são ~36 min de jogo e é até
+  // onde a economia sustenta: com 15, a meta passava da produção no Ano 9 e o
+  // jogo era invencível.
+  anoFinal: 9,
+};
+
+export function metaDoAno(ano) {
+  if (ano <= 1) return META.valorBase;
+  return Math.round(META.valorBase * Math.pow(META.crescimento, ano - META.anoBase));
+}
+
+export function precoDaCelula(compradas) {
+  return Math.round(CELULA.precoBase * Math.pow(CELULA.precoCrescimento, compradas));
+}
+
+// 0 = perfeito, 1 = totalmente fora da faixa. Usado por cura e eclosão.
+export function desvio(medidor, valor) {
+  const { ideal, min, max } = CLIMA[medidor];
+  if (valor >= ideal[0] && valor <= ideal[1]) return 0;
+  const fora = valor < ideal[0] ? ideal[0] - valor : valor - ideal[1];
+  const alcance = valor < ideal[0] ? ideal[0] - min : max - ideal[1];
+  return Math.min(1, fora / Math.max(1, alcance));
+}
+
+// Multiplicador de saúde da colmeia: 1.0 em clima perfeito.
+export function saudeDoClima(clima) {
+  const pior = Math.max(
+    desvio('temperatura', clima.temperatura),
+    desvio('umidade', clima.umidade),
+    desvio('co2', clima.co2),
+  );
+  return 1 - pior * (1 - CELULA.penalidadeMaxCura);
+}
