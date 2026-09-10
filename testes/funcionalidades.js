@@ -4,6 +4,7 @@
 // Não tocam em localStorage: dá pra rodar com uma partida real aberta.
 
 import { novoJogo, celulasArray } from '../src/core/estado.js';
+import { ovosDaCelula } from '../src/core/ovos.js';
 import { passo } from '../src/sim/tick.js';
 import * as A from '../src/sim/acoes.js';
 import { previsaoInverno, AVISO_INVERNO } from '../src/sim/inverno.js';
@@ -36,11 +37,11 @@ import {
 import * as S from '../src/core/save.js';
 import { DESAFIO_PADRAO, regraDoDesafio, penalidadeDoInverno } from '../src/sim/desafios.js';
 import {
-  elenco, censo, fatorColeta, fatorProducao, fatorRisco, melhorPara,
+  TALENTOS, elenco, censo, fatorColeta, fatorProducao, fatorRisco, melhorPara,
 } from '../src/sim/talentos.js';
 import { campoEmFlorada, statsComFlorada, FLORADA } from '../src/sim/floradas.js';
 import { encomendaAtiva } from '../src/sim/encomendas.js';
-import { VARIEDADES, precoDaCelula, PRESENTE_DO_ANO } from '../src/sim/economia.js';
+import { VARIEDADES, precoDaCelula, PRESENTE_DO_ANO, NINHADA } from '../src/sim/economia.js';
 import {
   BENCAOS, nivelBencao, totalBencao, bonusBencao, descontoBencao, fatorDoInverno,
   sortearBencaos, escolherBencao, textoDaBencao,
@@ -1243,6 +1244,80 @@ export async function rodar() {
       `inicio ${Math.round(inicio)} vs vidro ate ${Math.round(pote.x + pote.l)}`);
     ok(`e o botao continua tocavel em ${largura}px`, mm.acao >= 44, `${mm.acao}`);
   }
+
+  // -------------------------------------- 31. encomendar o pendor de um ovo
+  const comOvo = (semente = 42, mel = 20) => {
+    const e = novoJogo(semente);
+    e.pote.silvestre = mel;
+    for (let i = 0; i < 30 * 60 && !celulasArray(e).some((c) => c.estado === 'ovo'); i++) {
+      passo(e, 1 / 30);
+    }
+    return [e, celulasArray(e).find((c) => c.estado === 'ovo')];
+  };
+
+  const [ninho, celulaOvo] = comOvo();
+  ok('a colmeia poe um ovo', Boolean(celulaOvo));
+  const melAntes = A.totalNoPote(ninho);
+  const encomenda = A.escolherPendor(ninho, celulaOvo, 'defesa');
+  ok('da pra encomendar o pendor', encomenda.ok === true, encomenda.motivo ?? '');
+  ok('e custa o preco da tabela',
+    melAntes - A.totalNoPote(ninho) === NINHADA.custoPendor,
+    `${melAntes - A.totalNoPote(ninho)}`);
+  ok('o ovo lembra o pendor', ovosDaCelula(celulaOvo)[0].pendor === 'defesa');
+  ok('pedir o mesmo de novo e recusado',
+    A.escolherPendor(ninho, celulaOvo, 'defesa').ok === false);
+
+  const antesDaTroca = A.totalNoPote(ninho);
+  ok('trocar de ideia funciona', A.escolherPendor(ninho, celulaOvo, 'coleta').ok === true);
+  ok('mas cobra de novo', antesDaTroca - A.totalNoPote(ninho) === NINHADA.custoPendor);
+
+  // O que importa no fim: a abelha nasce com o que foi encomendado.
+  A.escolherPendor(ninho, celulaOvo, 'defesa');
+  for (const o of ovosDaCelula(celulaOvo)) o.cura = 1;
+  const idsAntes = new Set(ninho.abelhas.map((b) => b.id));
+  A.eclodirNinhada(ninho, celulaOvo);
+  const recemNascida = ninho.abelhas.find((b) => !idsAntes.has(b.id));
+  ok('a abelha nasce com o pendor encomendado', recemNascida?.talento === 'defesa',
+    recemNascida?.talento ?? '-');
+
+  // Sem encomenda, o sorteio continua mandando — o padrao nao mudou.
+  const [natural, celulaNatural] = comOvo(3);
+  if (celulaNatural) {
+    for (const o of ovosDaCelula(celulaNatural)) o.cura = 1;
+    const antesN = new Set(natural.abelhas.map((b) => b.id));
+    A.eclodirNinhada(natural, celulaNatural);
+    const nascidas = natural.abelhas.filter((b) => !antesN.has(b.id));
+    ok('sem encomenda o pendor continua sorteado',
+      nascidas.length > 0 && nascidas.every((b) => b.talento === null || TALENTOS[b.talento]));
+  } else {
+    ok('sem encomenda o pendor continua sorteado', false, 'nao saiu ovo');
+  }
+
+  // Sem mel nao da: a encomenda e um remedio, nao um passe livre.
+  const [seco, celulaSeca] = comOvo(7, 0);
+  ok('sem mel a encomenda e recusada',
+    celulaSeca ? A.escolherPendor(seco, celulaSeca, 'defesa').ok === false : false);
+  ok('e o pendor continua vazio',
+    celulaSeca ? (ovosDaCelula(celulaSeca)[0].pendor ?? null) === null : false);
+
+  // Pendor invalido e celula que nao e ovo.
+  ok('pendor desconhecido e recusado', A.escolherPendor(ninho, celulaOvo, 'voar').ok === false);
+  const vazia = celulasArray(ninho).find((c) => c.estado === 'vazia');
+  ok('so ovo aceita encomenda', vazia ? A.escolherPendor(ninho, vazia, 'defesa').ok === false : true);
+
+  // Recarregar nao perde a encomenda.
+  const [ovoGuardado, celulaGuardada] = comOvo(11);
+  A.escolherPendor(ovoGuardado, celulaGuardada, 'producao');
+  const voltouOvo = S.desserializar(JSON.parse(JSON.stringify(S.serializar(ovoGuardado))));
+  const celulaVolta = celulasArray(voltouOvo).find((c) => c.estado === 'ovo');
+  ok('a encomenda sobrevive ao save',
+    celulaVolta ? ovosDaCelula(celulaVolta).some((o) => o.pendor === 'producao') : false);
+
+  // A tela da ninhada precisa oferecer os tres.
+  const fonteNinhada = await (await fetch('/src/ui/ninhada.js')).text();
+  ok('a tela da ninhada oferece os tres pendores',
+    fonteNinhada.includes("['coleta', 'producao', 'defesa']"));
+  ok('e registra a zona de encomenda', fonteNinhada.includes("'ninhada:pendor'"));
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

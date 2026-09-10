@@ -14,7 +14,7 @@ import { celulasArray, criarAbelha } from '../core/estado.js';
 import { registrarEntrega } from './encomendas.js';
 import { bonusBencao, descontoBencao } from './bencaos.js';
 import { regraDoDesafio } from './desafios.js';
-import { sortearTalento } from './talentos.js';
+import { sortearTalento, TALENTOS } from './talentos.js';
 import { RAINHA, podeCoroar, emInterregno } from './rainha.js';
 
 const falha = (motivo) => ({ ok: false, motivo });
@@ -164,18 +164,26 @@ export function alocar(estado, campoId, tipo, delta) {
 
 // Coroa uma rainha nova. O custo é mel — o mesmo que iria para a meta — e uma
 // janela sem postura enquanto ela amadurece.
+// Gasta potes de mel começando pela variedade mais barata. O mel caro rende
+// mais vendido do que consumido, e o jogador não deveria ter que pensar nisso
+// toda vez. Devolve quanto conseguiu gastar.
+function gastarMel(estado, quantos) {
+  const baratas = Object.keys(VARIEDADES).sort((a, b) => VARIEDADES[a].base - VARIEDADES[b].base);
+  let resta = quantos;
+  for (const id of baratas) {
+    if (resta <= 0) break;
+    const tira = Math.min(Math.floor(estado.pote[id] ?? 0), resta);
+    estado.pote[id] -= tira;
+    resta -= tira;
+  }
+  return quantos - resta;
+}
+
 export function coroarRainha(estado) {
   if (emInterregno(estado)) return falha('A nova rainha ainda está amadurecendo.');
   if (!podeCoroar(estado)) return falha(`São ${RAINHA.custoMel} de mel para criar uma rainha.`);
 
-  let resta = RAINHA.custoMel;
-  const baratas = Object.keys(VARIEDADES).sort((a, b) => VARIEDADES[a].base - VARIEDADES[b].base);
-  for (const id of baratas) {
-    const tira = Math.min(Math.floor(estado.pote[id] ?? 0), resta);
-    estado.pote[id] -= tira;
-    resta -= tira;
-    if (resta <= 0) break;
-  }
+  gastarMel(estado, RAINHA.custoMel);
 
   estado.rainhaDesde = estado.decorrido + RAINHA.interregno;
   estado.interregno = RAINHA.interregno;
@@ -241,15 +249,7 @@ export function alimentarNinhada(estado, celula, potes = 1, ovoId = null) {
   const disponivel = Object.values(estado.pote).reduce((n, v) => n + Math.floor(v), 0);
   if (disponivel <= 0) return falha('Não há mel no pote.');
 
-  const gastar = Math.min(potes, disponivel);
-  const baratas = Object.keys(VARIEDADES).sort((a, b) => VARIEDADES[a].base - VARIEDADES[b].base);
-  let resta = gastar;
-  for (const variedade of baratas) {
-    if (resta <= 0) break;
-    const tira = Math.min(Math.floor(estado.pote[variedade] ?? 0), resta);
-    estado.pote[variedade] -= tira;
-    resta -= tira;
-  }
+  const gastar = gastarMel(estado, Math.min(potes, disponivel));
 
   mostrarDica(estado, 'acaoNinhada');
   ovo.cura += gastar * NINHADA.avancoPorMel;
@@ -261,12 +261,36 @@ export function alimentarNinhada(estado, celula, potes = 1, ovoId = null) {
   return sucesso({ gastou: gastar, nasceu: false });
 }
 
+// Encomendar o pendor de um ovo que já existe. O sorteio de nascimento
+// continua sendo o padrão — isto é a saída pra quando ele não deu o que a
+// colmeia precisa, tipicamente guardiã antes de a vespa chegar.
+//
+// Trocar de ideia custa de novo, de propósito: senão dá pra ficar alternando
+// de graça até a hora de nascer.
+export function escolherPendor(estado, celula, talento, ovoId = null) {
+  if (!celula || celula.estado !== 'ovo') return falha('Só dá para encomendar o pendor de um ovo.');
+  if (!TALENTOS[talento]) return falha('Pendor desconhecido.');
+
+  const ovos = ovosDaCelula(celula);
+  const ovo = ovoId == null ? ovos[0] : ovos.find((o) => o.id === ovoId);
+  if (!ovo) return falha('Esse ovo já nasceu.');
+  if (ovo.pendor === talento) return falha('Esse ovo já vai nascer assim.');
+  if (totalNoPote(estado) < NINHADA.custoPendor) {
+    return falha(`São ${NINHADA.custoPendor} de mel para encomendar um pendor.`);
+  }
+
+  gastarMel(estado, NINHADA.custoPendor);
+  ovo.pendor = talento;
+  mostrarDica(estado, 'acaoPendor');
+  return sucesso({ pendor: talento, custo: NINHADA.custoPendor });
+}
+
 export function eclodirNinhada(estado, celula) {
   const ovos = ovosDaCelula(celula);
   const prontos = ovos.filter(o => o.cura >= 1);
   celula.ovos = ovos.filter(o => o.cura < 1);
   sincronizarOvos(celula);
-  for (const ovo of prontos) nascerAbelha(estado);
+  for (const ovo of prontos) nascerAbelha(estado, ovo.pendor ?? null);
 }
 
 export function alugar(estado) {
@@ -310,10 +334,12 @@ export function ganharXp(estado, quantidade) {
   }
 }
 
-export function nascerAbelha(estado) {
+export function nascerAbelha(estado, pendor = null) {
   // As duas primeiras operárias nascem comuns (em `novoJogo`); daqui pra
-  // frente cada uma sorteia o próprio pendor.
-  const abelha = criarAbelha('operaria', estado.proximoIdAbelha++, sortearTalento(estado));
+  // frente cada uma sorteia o próprio pendor — a menos que o jogador tenha
+  // encomendado um para aquele ovo (`escolherPendor`).
+  const talento = pendor ?? sortearTalento(estado);
+  const abelha = criarAbelha('operaria', estado.proximoIdAbelha++, talento);
   estado.abelhas.push(abelha);
   return abelha;
 }

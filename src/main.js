@@ -8,7 +8,7 @@ import { geometriaFavo, limitarCamera, limitarZoom, ZOOM } from './render/favo.j
 import { zonaEm } from './ui/zonas.js';
 import {
   comprarCelula, colher, vender, aplicarBoost, alocar, comprarUpgrade,
-  alimentarNinhada, avisar, recolherTodas, alugar, misturar,
+  alimentarNinhada, escolherPendor, avisar, recolherTodas, alugar, misturar,
 } from './sim/acoes.js';
 import { escolherBencao } from './sim/bencaos.js';
 import { fecharDica, dicaPausada } from './sim/dicas.js';
@@ -381,6 +381,11 @@ function tratarZona(z) {
       relatar(r);
       // Nasceu: o ovo virou célula vazia e o balão perde o objeto.
       if (r.ok && r.nasceu) { ui.ovoIndividual = null; if (celula.estado !== 'ovo') ui.ovoSelecionado = null; }
+      break;
+    }
+    case 'ninhada:pendor': {
+      const celula = estado.celulas[z.dados.chave];
+      relatar(escolherPendor(estado, celula, z.dados.pendor, z.dados.ovo));
       break;
     }
     case 'ninhada:cartao':

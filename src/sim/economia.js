@@ -148,6 +148,12 @@ export const NINHADA = {
   // A 0,1 são dez potes para chocar um ovo do zero — na prática o jogador
   // gasta dois ou três no fim, para não esperar o último pedaço.
   avancoPorMel: 0.1,
+  // Encomendar o pendor de um ovo. Não é o único jeito de ter guardiã — o
+  // sorteio de nascimento continua igual — é o jeito de **consertar** um
+  // sorteio que não deu o que a colmeia precisa. Por isso custa mel, e por
+  // isso custa pouco: quem está sem guardiã é quem está perdendo abelha, e
+  // portanto quem tem menos mel.
+  custoPendor: 3,
 };
 
 // Passeio das abelhas dentro do favo. É desenho, mas mora na simulação porque

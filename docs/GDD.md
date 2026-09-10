@@ -833,3 +833,44 @@ A fileira de ação passou a se dimensionar (`BOTOES_DE_ACAO` em `layout.js`):
 cinco botões no tamanho antigo encostavam no vidro de mel em tela estreita.
 Agora dividem a faixa que sobra ao lado dele, com piso no alvo mínimo de toque
 (44 px). Há teste conferindo os dois limites em 320, 375, 414, 768 e 1280 px.
+
+### 9.25 Encomendar o pendor de um ovo — `escolherPendor`
+
+A medição de § 9.23 deixou um buraco à vista: nos anos 4-7 a colmeia barra
+só 73-75% dos ataques, e quem não tirou guardiã no sorteio não tem **nada**
+que possa fazer. Só rezar. Falta agência sobre a composição da colônia.
+
+A alternativa considerada foi gatilhar o nascimento: guardiã e ceroma só
+nasceriam se compradas. Descartada por três motivos:
+
+- **pune quem já está perdendo** — quem está sem guardiã é quem perde abelha
+  pra vespa, ou seja, quem tem menos mel; a bola de neve desceria mais rápido;
+- **o mel já tem quatro donos** — meta, fome, ninhada e coroação; um quinto
+  ralo cai justo no Ano 7, onde a meta é 286 e um pote de silvestre vale 6;
+- **mataria o elenco** (§ 8.7) — a graça do pendor é a abelha nascer com
+  surpresa e virar personagem, não item de loja.
+
+O que entrou no lugar: **o sorteio continua sendo o padrão**, e o jogador pode
+encomendar o pendor de um **ovo que já existe**, pagando `NINHADA.custoPendor`
+(3 potes). A diferença está no que acontece quando ele não paga — colônia
+sorteada como sempre, em vez de colônia sem defesa nenhuma. A compra é o
+remédio, não o pedágio, e quem está atrás consegue usar porque só paga quando
+precisa.
+
+Mora na tela que já existia: o balão da ninhada, onde o mel já era gasto pra
+adiantar a eclosão. Mesmo verbo, mesma tela.
+
+Detalhes:
+
+- o pendor fica **no ovo** (`ovo.pendor`), não na célula: uma ninhada tem até
+  três ovos e cada um pode ter o seu. A aba de cada ovo ganha um ponto da cor
+  do pendor encomendado, pra não precisar selecionar um por um;
+- **trocar de ideia cobra de novo**, senão dá pra alternar de graça até a hora
+  de nascer;
+- `nascerAbelha(estado, pendor)` usa o encomendado e **pula o sorteio** — quem
+  não tem encomenda continua caindo em `sortearTalento`;
+- vai no save junto com a célula, sem campo novo no serializador.
+
+De quebra, `gastarMel` saiu de dentro de `alimentarNinhada`: três ações
+(alimentar, coroar, encomendar) faziam o mesmo laço de gastar do mel mais
+barato primeiro.

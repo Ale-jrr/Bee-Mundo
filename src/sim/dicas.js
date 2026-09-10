@@ -202,6 +202,19 @@ export const DICAS = {
       'virada do ano, quase nunca.',
     ],
   },
+  acaoPendor: {
+    titulo: 'você encomendou um pendor',
+    vezes: 1,
+    pausa: true,
+    linhas: [
+      'Esse ovo vai nascer com o pendor que você',
+      'escolheu, em vez do sorteado.',
+      'O sorteio normal continua valendo para todos os',
+      'outros — isto aqui é para consertar o que ele não',
+      'deu, tipo uma guardiã antes de a vespa chegar.',
+      'Trocar de ideia custa mel de novo.',
+    ],
+  },
   acaoRainha: {
     titulo: 'você coroou uma rainha',
     vezes: 1,
