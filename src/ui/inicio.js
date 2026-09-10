@@ -1,4 +1,4 @@
-import { retanguloArredondado, pilula, rotulo, numero, caminhoHex, FONTE } from '../render/desenho.js';
+import { retanguloArredondado, pilula, rotulo, caminhoHex, FONTE } from '../render/desenho.js';
 import { zona } from './zonas.js';
 import { medidas } from './layout.js';
 import { desenharChips, alturaDosChips } from './desafios.js';
@@ -27,83 +27,78 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
   ctx.fillRect(0, 0, L, A);
   zona('inicio:fundo', 0, 0, L, A);
 
-  const pad = Math.max(18, Math.round(26 * m.esc));
-  const hBotao = Math.max(m.toque, Math.round(48 * m.esc));
-  const gap = Math.max(10, Math.round(12 * m.esc));
+  // O cartão se mede inteiro antes de desenhar qualquer coisa, e encolhe junto
+  // se não couber na tela. Antes cada bloco calculava a própria altura por
+  // conta: a marca reservava 96·esc e desenhava o subtítulo em 94·esc, com o
+  // título ocupando até 93·esc — o nome do jogo saía por cima do subtítulo.
+  const cabe = A - m.margem * 2;
+  let d = medir(m, m.esc, podeContinuar);
+  if (d.a > cabe) d = medir(m, m.esc * (cabe / d.a), podeContinuar);
 
   const l = Math.min(420, L - m.margem * 2);
-  const a = pad + Math.round(96 * m.esc)              // marca
-    + (podeContinuar ? hBotao + gap : 0)
-    + hBotao + gap
-    + hBotao + gap                                   // tutorial
-    + Math.round(22 * m.esc) + alturaDosChips()       // desafios
-    + gap + Math.round(34 * m.esc)                    // som
-    + Math.round(26 * m.esc) + pad;                   // rodapé
   const x = (L - l) / 2;
-  const y = Math.max(m.margem, (A - a) / 2);
+  const y = Math.max(m.margem, (A - d.a) / 2);
 
-  retanguloArredondado(ctx, x, y, l, a, 30);
+  retanguloArredondado(ctx, x, y, l, d.a, 30);
   ctx.fillStyle = pal.css('hud', 0.98);
   ctx.fill();
-  zona('inicio:cartao', x, y, l, a);
+  zona('inicio:cartao', x, y, l, d.a);
 
-  let cursor = y + pad;
-  cursor = desenharMarca(ctx, pal, m, x, cursor, l);
+  let cursor = desenharMarca(ctx, pal, d, x, y + d.pad, l) + d.gap + d.respiro;
 
   if (podeContinuar) {
     const t = relogio(estado.decorrido);
-    pilula(ctx, x + pad, cursor, l - pad * 2, hBotao);
+    pilula(ctx, x + d.pad, cursor, l - d.pad * 2, d.hBotao);
     ctx.fillStyle = pal.css('cheia');
     ctx.fill();
-    rotulo(ctx, 'continuar', x + l / 2, cursor + hBotao * 0.36, {
-      tamanho: Math.max(11, 13 * m.esc), cor: pal.css('tinta'), espaco: 2.4, alinhar: 'center',
+    rotulo(ctx, 'continuar', x + l / 2, cursor + d.hBotao * 0.36, {
+      tamanho: Math.max(11, 13 * d.esc), cor: pal.css('tinta'), espaco: 2.4, alinhar: 'center',
     });
     rotulo(ctx, `ano ${estado.ano} · ${t.estacao.nome.toLowerCase()} · ${estado.abelhas.length} abelhas`,
-      x + l / 2, cursor + hBotao * 0.74, {
-        tamanho: Math.max(8, 9 * m.esc), cor: pal.css('tinta'), espaco: 1.2, alinhar: 'center',
+      x + l / 2, cursor + d.hBotao * 0.74, {
+        tamanho: Math.max(8, 9 * d.esc), cor: pal.css('tinta'), espaco: 1.2, alinhar: 'center',
       });
-    zona('inicio:continuar', x + pad, cursor, l - pad * 2, hBotao);
-    cursor += hBotao + gap;
+    zona('inicio:continuar', x + d.pad, cursor, l - d.pad * 2, d.hBotao);
+    cursor += d.hBotao + d.gap;
   }
 
-  pilula(ctx, x + pad, cursor, l - pad * 2, hBotao);
+  pilula(ctx, x + d.pad, cursor, l - d.pad * 2, d.hBotao);
   ctx.fillStyle = podeContinuar ? pal.css('escuro', 0.1) : pal.css('cheia');
   ctx.fill();
   rotulo(ctx, podeContinuar ? 'novo jogo (apaga o atual)' : 'começar',
-    x + l / 2, cursor + hBotao / 2, {
-      tamanho: Math.max(11, 13 * m.esc), cor: pal.css('tinta'), espaco: 2.4, alinhar: 'center',
+    x + l / 2, cursor + d.hBotao / 2, {
+      tamanho: Math.max(11, 13 * d.esc), cor: pal.css('tinta'), espaco: 2.4, alinhar: 'center',
     });
-  zona('inicio:novo', x + pad, cursor, l - pad * 2, hBotao);
-  cursor += hBotao + gap;
+  zona('inicio:novo', x + d.pad, cursor, l - d.pad * 2, d.hBotao);
+  cursor += d.hBotao + d.gap;
 
   // O tutorial vem logo abaixo de começar: quem chega sem saber precisa
   // encontrá-lo antes de decidir qualquer outra coisa.
-  pilula(ctx, x + pad, cursor, l - pad * 2, hBotao);
+  pilula(ctx, x + d.pad, cursor, l - d.pad * 2, d.hBotao);
   ctx.fillStyle = pal.css('escuro', 0.08);
   ctx.fill();
-  rotulo(ctx, 'tutorial · aprender jogando', x + l / 2, cursor + hBotao / 2, {
-    tamanho: Math.max(10, 12 * m.esc), cor: pal.css('tinta'), espaco: 2, alinhar: 'center',
+  rotulo(ctx, 'tutorial · aprender jogando', x + l / 2, cursor + d.hBotao / 2, {
+    tamanho: Math.max(10, 12 * d.esc), cor: pal.css('tinta'), espaco: 2, alinhar: 'center',
   });
-  zona('inicio:tutorial', x + pad, cursor, l - pad * 2, hBotao);
-  cursor += hBotao + gap;
+  zona('inicio:tutorial', x + d.pad, cursor, l - d.pad * 2, d.hBotao);
+  cursor += d.hBotao + d.gap + d.respiro;
 
-  rotulo(ctx, 'desafio da próxima partida', x + pad, cursor + Math.round(10 * m.esc), {
-    tamanho: Math.max(9, 10 * m.esc), cor: pal.css('suave'), espaco: 2.2,
+  rotulo(ctx, 'desafio da próxima partida', x + d.pad, cursor + d.hRotulo / 2, {
+    tamanho: Math.max(9, 10 * d.esc), cor: pal.css('suave'), espaco: 2.2,
   });
-  cursor += Math.round(22 * m.esc);
-  cursor += desenharChips(ctx, pal, x + pad, cursor, l - pad * 2,
+  cursor += d.hRotulo + d.respiro;
+  cursor += desenharChips(ctx, pal, x + d.pad, cursor, l - d.pad * 2,
     ui.desafioEscolhido ?? DESAFIO_PADRAO, 'inicio:desafio');
-  cursor += gap;
+  cursor += d.gap;
 
-  const hSom = Math.round(34 * m.esc);
-  pilula(ctx, x + pad, cursor, l - pad * 2, hSom);
+  pilula(ctx, x + d.pad, cursor, l - d.pad * 2, d.hSom);
   ctx.fillStyle = pal.css('escuro', 0.08);
   ctx.fill();
-  rotulo(ctx, mudo() ? 'som: desligado' : 'som: ligado', x + l / 2, cursor + hSom / 2, {
-    tamanho: Math.max(9, 10 * m.esc), cor: pal.css('tinta'), espaco: 2, alinhar: 'center',
+  rotulo(ctx, mudo() ? 'som: desligado' : 'som: ligado', x + l / 2, cursor + d.hSom / 2, {
+    tamanho: Math.max(9, 10 * d.esc), cor: pal.css('tinta'), espaco: 2, alinhar: 'center',
   });
-  zona('inicio:som', x + pad, cursor, l - pad * 2, hSom);
-  cursor += hSom + Math.round(6 * m.esc);
+  zona('inicio:som', x + d.pad, cursor, l - d.pad * 2, d.hSom);
+  cursor += d.hSom + d.gap;
 
   // Rodapé: o que a colmeia já provou. Sem isso, quem perde no Ano 6 não tem
   // nenhum registro de ter chegado lá.
@@ -112,16 +107,47 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
     : conquistas.melhorAno > 1
       ? `melhor até agora: ano ${conquistas.melhorAno} de ${META.anoFinal}`
       : `sobreviva a ${META.anoFinal} anos`;
-  rotulo(ctx, marca, x + l / 2, cursor + Math.round(14 * m.esc), {
-    tamanho: Math.max(8, 9 * m.esc), cor: pal.css('suave'), espaco: 1.6, alinhar: 'center',
+  rotulo(ctx, marca, x + l / 2, cursor + d.tamSub / 2, {
+    tamanho: d.tamSub, cor: pal.css('suave'), espaco: 1.6, alinhar: 'center',
   });
 }
 
+// Todas as medidas do cartão em um lugar só, para a altura total e o desenho
+// nunca discordarem. Recebe `esc` de fora porque o cartão se remede menor
+// quando não cabe na tela.
+function medir(m, esc, podeContinuar) {
+  const pad = Math.max(16, Math.round(24 * esc));
+  const gap = Math.max(13, Math.round(18 * esc));
+  const respiro = Math.max(9, Math.round(12 * esc));
+  // O alvo de toque pode encolher um pouco em tela baixa, mas não sumir.
+  const hBotao = Math.max(Math.round(m.toque * 0.86), Math.round(50 * esc));
+  const hSom = Math.max(28, Math.round(36 * esc));
+  const rHex = Math.max(12, Math.round(20 * esc));
+  const tamTitulo = Math.max(24, Math.round(38 * esc));
+  const tamSub = Math.max(8, Math.round(10 * esc));
+  const hRotulo = Math.max(10, Math.round(12 * esc));
+
+  // Os três hexágonos ocupam 2,84 raios de altura: o de cima está um raio
+  // acima do centro e cada um se estende 0,92 raio para fora.
+  const hMarca = Math.round(rHex * 2.84) + respiro + Math.round(6 * esc)
+    + tamTitulo + respiro + Math.round(4 * esc) + tamSub;
+
+  const a = pad + hMarca + gap + respiro
+    + (podeContinuar ? hBotao + gap : 0)
+    + hBotao + gap                                  // começar / novo jogo
+    + hBotao + gap + respiro                        // tutorial
+    + hRotulo + respiro + alturaDosChips() + gap    // desafios
+    + hSom + gap
+    + tamSub + pad;                                 // rodapé
+
+  return { esc, pad, gap, respiro, hBotao, hSom, rHex, tamTitulo, tamSub, hRotulo, hMarca, a };
+}
+
 // Marca do jogo: três hexágonos e o nome. Devolve onde o conteúdo continua.
-function desenharMarca(ctx, pal, m, x, y, l) {
-  const r = Math.round(20 * m.esc);
+function desenharMarca(ctx, pal, d, x, y, l) {
+  const { rHex: r, tamTitulo, tamSub, respiro, esc } = d;
   const cx = x + l / 2;
-  const cy = y + r + Math.round(6 * m.esc);
+  const cy = y + Math.round(r * 1.92);        // encosta o topo do agrupamento em y
 
   const favo = [[0, 0], [-1.74, -1], [1.74, -1]];
   favo.forEach(([dx, dy], i) => {
@@ -131,17 +157,19 @@ function desenharMarca(ctx, pal, m, x, y, l) {
     ctx.fill();
   });
 
+  const yTitulo = cy + Math.round(r * 0.92) + respiro + Math.round(6 * esc) + tamTitulo / 2;
   ctx.save();
-  ctx.font = `700 ${Math.round(38 * m.esc)}px ${FONTE}`;
+  ctx.font = `700 ${tamTitulo}px ${FONTE}`;
   ctx.fillStyle = pal.css('tinta');
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText('COLMEIA', cx, cy + r * 2.4, l - 40);
+  ctx.fillText('COLMEIA', cx, yTitulo, l - d.pad * 2);
   ctx.restore();
 
-  rotulo(ctx, 'um apiário em nove anos', cx, cy + r * 3.4, {
-    tamanho: Math.max(8, 10 * m.esc), cor: pal.css('suave'), espaco: 2.4, alinhar: 'center',
-  });
+  rotulo(ctx, 'um apiário em nove anos',
+    cx, yTitulo + tamTitulo / 2 + respiro + Math.round(4 * esc) + tamSub / 2, {
+      tamanho: tamSub, cor: pal.css('suave'), espaco: 2.4, alinhar: 'center',
+    });
 
-  return y + Math.round(96 * m.esc);
+  return y + d.hMarca;
 }
