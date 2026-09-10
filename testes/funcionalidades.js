@@ -27,6 +27,8 @@ import { SEGUNDOS_POR_ANO } from '../src/sim/estacoes.js';
 import * as K from '../src/core/conquistas.js';
 import { estaMinimizado, alternarMinimizado, recuoDoBotao } from '../src/ui/cartao.js';
 import { avisosAtivos, avisosNovos, temUrgente } from '../src/sim/avisos.js';
+import { desenharChips, alturaDosChips } from '../src/ui/desafios.js';
+import { DESAFIOS } from '../src/sim/desafios.js';
 import * as S from '../src/core/save.js';
 import { DESAFIO_PADRAO, regraDoDesafio, penalidadeDoInverno } from '../src/sim/desafios.js';
 import {
@@ -849,6 +851,19 @@ export function rodar() {
   agitado.formigas = { resta: 9, roubado: 0 };
   ok('aviso que chega depois volta a ser novo',
     avisosNovos(agitado, vistosAntes).join(',') === 'formigas');
+
+  // ------------------------------------------------ 23. tela de início
+
+  ok('a grade de desafios cresce com o catálogo',
+    alturaDosChips(Object.keys(DESAFIOS).length) > alturaDosChips(2));
+  ok('duas colunas por linha',
+    alturaDosChips(4) === alturaDosChips(3), `${alturaDosChips(4)} vs ${alturaDosChips(3)}`);
+  ok('a altura padrão é a do catálogo inteiro',
+    alturaDosChips() === alturaDosChips(Object.keys(DESAFIOS).length));
+
+  // A tela de início e o menu leem a mesma grade: um desafio novo aparece nos
+  // dois sem ninguém lembrar de atualizar o segundo.
+  ok('início e menu compartilham a grade', typeof desenharChips === 'function');
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

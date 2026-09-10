@@ -18,6 +18,7 @@ import { registrarVitoria, registrarAno } from './core/conquistas.js';
 import { acordarSom, atualizarSom, tocar, alternarMudo, pausarSom } from './render/som.js';
 import { alternarMinimizado } from './ui/cartao.js';
 import { avisosAtivos } from './sim/avisos.js';
+import { DESAFIO_PADRAO } from './sim/desafios.js';
 import { dePixel, chave } from './sim/hex.js';
 import { relogio } from './sim/estacoes.js';
 
@@ -36,6 +37,10 @@ const ui = {
   minimizados: {},
   // Avisos que ele já abriu: é o que faz o sino parar de piscar.
   avisosVistos: [],
+  // 'inicio' enquanto a tela de abertura estiver aberta; 'jogo' depois. O
+  // relógio da simulação só anda em 'jogo'.
+  tela: 'inicio',
+  temSave: false,
   // Vista do jogador sobre o favo. Não é estado de jogo — não vai pro save,
   // e recomeçar não deve herdar o enquadramento da partida anterior.
   camera: { x: 0, y: 0, zoom: 1 },
@@ -49,6 +54,8 @@ const salvo = carregar();
 if (salvo) {
   estado = salvo.estado;
   ui.salvoEm = salvo.salvoEm;
+  ui.temSave = true;
+  ui.desafioEscolhido = estado.desafio ?? DESAFIO_PADRAO;
 } else {
   estado = novoJogo();
 }
@@ -152,9 +159,16 @@ function rolar(delta) {
 }
 
 function aoTocar(x, y) {
-  // Fim de partida: qualquer toque recomeça, ganhando ou perdendo.
+  if (ui.tela === 'inicio') {
+    const alvo = zonaEm(x, y);
+    if (alvo) tratarInicio(alvo);
+    return;
+  }
+  // Fim de partida: qualquer toque volta para a tela de início, com a colmeia
+  // encerrada ainda no lugar — quem quiser recomeçar decide lá.
   if (estado.derrota || estado.vitoria) {
-    recomecar();
+    ui.tela = 'inicio';
+    ui.painel = null;
     return;
   }
   // Escolha da primavera: só as cartas respondem, e o fundo absorve o resto —
@@ -174,6 +188,26 @@ function aoTocar(x, y) {
     tratarZona(alvo);
   } else {
     tratarFavo(x, y);
+  }
+}
+
+function tratarInicio(z) {
+  switch (z.id) {
+    case 'inicio:continuar':
+      ui.tela = 'jogo';
+      break;
+    case 'inicio:novo':
+      recomecar();
+      ui.tela = 'jogo';
+      break;
+    case 'inicio:desafio':
+      ui.desafioEscolhido = z.dados.id;
+      break;
+    case 'inicio:som':
+      alternarMudo();
+      break;
+    default:
+      break;                      // o cartão e o fundo absorvem o toque
   }
 }
 
@@ -372,6 +406,7 @@ function relatar(resultado) {
 function recomecar() {
   apagar();                     // só a partida: conquistas ficam
   centralizar();
+  ui.temSave = false;
   vitoriaRegistrada = false;
   ultimoAnoVisto = 0;
   estado = novoJogo(undefined, ui.desafioEscolhido ?? undefined);
@@ -397,8 +432,11 @@ function gravar() {
 }
 
 // Sair da aba é o momento mais provável de perder progresso.
-window.addEventListener('pagehide', gravar);
-window.addEventListener('beforeunload', gravar);
+// Sair da aba é o momento mais provável de perder progresso — mas não há o
+// que salvar se o jogador nem entrou na partida.
+const gravarSeJogando = () => { if (ui.tela === 'jogo') gravar(); };
+window.addEventListener('pagehide', gravarSeJogando);
+window.addEventListener('beforeunload', gravarSeJogando);
 
 // ------------------------------------------------------------- visibilidade
 
@@ -426,7 +464,7 @@ function quadro(agora) {
   const bruto = Math.min((agora - anterior) / 1000, MAX_QUADRO);
   anterior = agora;
 
-  if (!document.hidden) {
+  if (!document.hidden && ui.tela === 'jogo') {
     acumulado += bruto * estado.velocidade;
     let guarda = 0;
     while (acumulado >= TICK && guarda++ < 240) {
@@ -446,6 +484,7 @@ function quadro(agora) {
 
     desdeUltimoSave += bruto;
     if (desdeUltimoSave >= INTERVALO_SALVAR) gravar();
+    ui.temSave = true;
   }
 
   // Abaixo disso o layout do HUD produz larguras negativas; nada a desenhar.

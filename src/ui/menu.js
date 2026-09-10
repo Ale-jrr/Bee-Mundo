@@ -2,8 +2,8 @@ import { retanguloArredondado, pilula, rotulo, numero } from '../render/desenho.
 import { zona } from './zonas.js';
 import { medidas } from './layout.js';
 import { relogio } from '../sim/estacoes.js';
-import { DESAFIOS, DESAFIO_PADRAO, nomeDoDesafio } from '../sim/desafios.js';
-import { desafiosLiberados } from '../core/conquistas.js';
+import { DESAFIO_PADRAO, nomeDoDesafio } from '../sim/desafios.js';
+import { desenharChips, alturaDosChips, ALTURA_CHIP } from './desafios.js';
 import { mudo } from '../render/som.js';
 
 // Menu. Pequeno de propósito: só o que o jogador precisa poder fazer fora do
@@ -15,9 +15,8 @@ export function desenharMenu(ctx, estado, pal, L, A, ui = {}) {
 
   const m = medidas(L, A);
   const l = Math.min(420, L - m.margem * 2);
-  const ids = Object.keys(DESAFIOS);
-  const alturaChip = 46;
-  const linhasChip = Math.ceil(ids.length / 2);
+  const alturaChip = ALTURA_CHIP;
+  const linhasChip = alturaDosChips() / (alturaChip + 8);
   // O bloco de desafios cresce com o catálogo: acrescentar um quinto desafio
   // não pode empurrar o botão pra fora do cartão.
   const a = Math.min(A - m.margem * 2, 406 + linhasChip * (alturaChip + 8));
@@ -61,45 +60,13 @@ export function desenharMenu(ctx, estado, pal, L, A, ui = {}) {
 
   // Desafios: escolhidos antes de recomeçar, não no meio da partida. Trocar a
   // regra com o jogo em curso invalidaria o ano que o jogador já jogou.
+  // A grade é a mesma da tela de início: um módulo só, pra as
+  // duas não divergirem quando entrar um desafio novo.
   const escolhido = ui.desafioEscolhido ?? estado.desafio ?? DESAFIO_PADRAO;
   rotulo(ctx, 'próxima partida', x + 26, y + 264, {
     tamanho: 11, cor: pal.css('suave'), espaco: 2.2,
   });
-
-  // Desafios ficam trancados até a primeira vitória: eles são o motivo de
-  // rejogar, e disponíveis desde o começo vencer não desbloqueava nada.
-  const liberados = desafiosLiberados();
-  const chipL = (l - 52 - 8) / 2;
-  ids.forEach((id, i) => {
-    const cx = x + 26 + (i % 2) * (chipL + 8);
-    const cy = y + 282 + Math.floor(i / 2) * (alturaChip + 8);
-    const travado = id !== DESAFIO_PADRAO && !liberados;
-    const ativo = id === escolhido && !travado;
-    pilula(ctx, cx, cy, chipL, alturaChip);
-    ctx.fillStyle = ativo ? pal.css('cheia') : pal.css('escuro', travado ? 0.04 : 0.08);
-    ctx.fill();
-    rotulo(ctx, DESAFIOS[id].nome, cx + chipL / 2, cy + 17, {
-      tamanho: 10, cor: ativo ? pal.css('tinta') : pal.css('suave', travado ? 0.5 : 1),
-      espaco: 1.4, alinhar: 'center',
-    });
-    rotulo(ctx, travado ? 'vença uma vez para abrir' : DESAFIOS[id].resumo,
-      cx + chipL / 2, cy + 32, {
-        tamanho: 8, cor: ativo ? pal.css('tinta') : pal.css('suave', travado ? 0.5 : 1),
-        espaco: 1, alinhar: 'center',
-      });
-    if (!travado) zona('menu:desafio', cx, cy, chipL, alturaChip, { id });
-  });
-
-  // Histórico: fica fora do menu porque é uma tabela, e o menu é um cartão de
-  // decisões curtas.
-  const hy = y + a - 118;
-  pilula(ctx, x + 26, hy, l - 52, 40);
-  ctx.fillStyle = pal.css('escuro', 0.08);
-  ctx.fill();
-  rotulo(ctx, 'ver histórico dos anos', x + l / 2, hy + 20, {
-    tamanho: 11, cor: pal.css('tinta'), espaco: 2.2, alinhar: 'center',
-  });
-  zona('menu:historico', x + 26, hy, l - 52, 40);
+  desenharChips(ctx, pal, x + 26, y + 282, l - 52, escolhido, 'menu:desafio');
 
   // Recomeçar apaga o save, então pede confirmação em dois toques em vez de
   // uma caixa de diálogo.

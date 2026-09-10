@@ -13,6 +13,7 @@ import { desenharCampos } from '../ui/campos.js';
 import { desenharMenu } from '../ui/menu.js';
 import { desenharHistorico } from '../ui/historico.js';
 import { desenharRainha } from '../ui/rainha.js';
+import { desenharInicio } from '../ui/inicio.js';
 import { desenharNinhada } from '../ui/ninhada.js';
 import { desenharInverno } from '../ui/inverno.js';
 import { desenharEncomenda } from '../ui/encomenda.js';
@@ -78,6 +79,9 @@ export function desenhar(ctx, estado, L, A, dt, ui = {}) {
   // Depois dos painéis e antes do fim de partida: a escolha da primavera é
   // modal e precisa capturar o toque de qualquer coisa que esteja aberta.
   desenharEscolha(ctx, estado, pal, L, A);
+  // A tela de início vem por cima de tudo: enquanto ela estiver aberta o jogo
+  // não anda, e nada atrás dela deve responder ao toque.
+  if (ui.tela === 'inicio') desenharInicio(ctx, estado, pal, L, A, ui);
   // A dica vem por cima de tudo, inclusive da escolha da primavera: ela existe
   // justamente pra explicar o que está na tela naquele momento.
   desenharDica(ctx, estado, pal, L, A, ui);

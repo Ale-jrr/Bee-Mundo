@@ -567,3 +567,29 @@ Não é fechar, é encolher: a informação continua valendo enquanto o aviso du
 e some sozinha quando ele acabar. O estado de aberto/fechado mora na `ui`, como
 a câmera — não vai pro save nem sobrevive a um recomeço.
 
+### 9.17 Tela de início — `ui/inicio.js`
+O jogo abria já correndo: quem voltava depois de um tempo caía no meio de uma
+partida sem saber em que pé estava, e quem queria recomeçar tinha que achar o
+menu. Agora abre numa tela de início, com o favo parado atrás.
+
+Ela faz três coisas que nenhuma outra tela fazia:
+
+1. **Deixa escolher antes de o relógio andar.** `ui.tela` fica em `inicio` até o
+   jogador entrar, e o laço só chama `passo()` em `jogo`. Continuar mostra em
+   que ponto a partida está (ano, estação, abelhas).
+2. **Mostra o desafio da próxima partida antes dela começar**, que é o único
+   momento em que essa escolha tem sentido. A grade é a mesma do menu, num
+   módulo só (`ui/desafios.js`) — duas cópias divergiriam no primeiro desafio
+   novo.
+3. **Dá o primeiro toque na tela**, que é o que a política de autoplay do
+   navegador exige para o som poder existir. O botão de som está ali também.
+
+O rodapé guarda o que a colmeia já provou: *sobreviva a 9 anos* na primeira
+vez, *melhor até agora: ano N* depois de perder, *colmeia vencedora* depois de
+vencer.
+
+Fim de partida passou a voltar para cá em vez de recomeçar no toque: a colmeia
+encerrada continua na tela até o jogador decidir. Como `Continuar` some quando
+há derrota ou vitória, a única saída é começar de novo — mas por escolha, não
+por um toque distraído.
+
