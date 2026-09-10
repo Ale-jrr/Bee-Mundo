@@ -1,7 +1,7 @@
 import { reservaInverno } from '../sim/alimento.js';
 import { retanguloArredondado, pilula, rotulo, numero, FONTE } from '../render/desenho.js';
 import { zona } from './zonas.js';
-import { VARIEDADES, metaDoAno } from '../sim/economia.js';
+import { VARIEDADES, metaDoAno, MISTURA } from '../sim/economia.js';
 import { medidas } from './layout.js';
 import { precoDeVenda } from '../sim/acoes.js';
 
@@ -16,7 +16,8 @@ export function desenharRax(ctx, estado, pal, t, L, A) {
   const alturaLinha = m.compacto ? 92 : 74;
   const l = Math.min(760, L - m.margem * 2);
   const linhas = Object.keys(VARIEDADES).length;
-  const a = Math.min(A - m.margem * 2, (m.compacto ? 120 : 150) + linhas * alturaLinha);
+  // Uma faixa a mais no cartão para o botão de misturar.
+  const a = Math.min(A - m.margem * 2, (m.compacto ? 168 : 198) + linhas * alturaLinha);
   const x = (L - l) / 2;
   const y = (A - a) / 2;
 
@@ -49,6 +50,25 @@ export function desenharRax(ctx, estado, pal, t, L, A) {
     const topo = y + (m.compacto ? 74 : 90) + i * alturaLinha;
     desenharLinha(ctx, estado, pal, t, id, v, x + 24, topo, l - 48, m);
   });
+
+  // Botão de misturar, abaixo das linhas: a mistura é uma operação sobre o
+  // vidro, então mora na tela do vidro.
+  const podeMisturar = MISTURA.entrada.every((v) => Math.floor(estado.pote[v] ?? 0) >= 1);
+  const my = y + (m.compacto ? 74 : 90) + Object.keys(VARIEDADES).length * alturaLinha + 4;
+  const ma = Math.max(m.toque * 0.8, 36);
+  if (my + ma < y + a - 46) {
+    pilula(ctx, x + 24, my, l - 48, ma);
+    ctx.fillStyle = podeMisturar ? pal.css('cheia') : pal.css('escuro', 0.1);
+    ctx.fill();
+    rotulo(ctx, podeMisturar
+      ? `misturar 1 de cada → 1 ${VARIEDADES[MISTURA.saida].nome}`
+      : 'misturar precisa de 1 de cada variedade',
+    x + l / 2, my + ma / 2, {
+      tamanho: 10, cor: podeMisturar ? pal.css('tinta') : pal.css('suave'),
+      espaco: 1.6, alinhar: 'center',
+    });
+    if (podeMisturar) zona('rax:misturar', x + 24, my, l - 48, ma);
+  }
 
   const reserva = reservaInverno(estado);
   ctx.save();

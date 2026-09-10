@@ -11,7 +11,7 @@ import { dicaAtiva } from '../sim/dicas.js';
 // está lendo não deve perder a explicação no meio.
 export function desenharDica(ctx, estado, pal, L, A, ui = {}) {
   const dica = dicaAtiva(estado);
-  if (!dica || ui.painel || estado.escolha) return;
+  if (!dica || ui.painel) return;
 
   const m = medidas(L, A);
   const { esc } = m;

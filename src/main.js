@@ -8,10 +8,16 @@ import { geometriaFavo, limitarCamera, limitarZoom, ZOOM } from './render/favo.j
 import { zonaEm } from './ui/zonas.js';
 import {
   comprarCelula, colher, vender, aplicarBoost, alocar, comprarUpgrade,
-  alimentarNinhada, avisar, recolherTodas,
+  alimentarNinhada, avisar, recolherTodas, alugar, misturar,
 } from './sim/acoes.js';
 import { escolherBencao } from './sim/bencaos.js';
 import { fecharDica } from './sim/dicas.js';
+import { coroarRainha } from './sim/acoes.js';
+import { vedarEntrada } from './sim/formigas.js';
+import { registrarVitoria, registrarAno } from './core/conquistas.js';
+import { acordarSom, atualizarSom, tocar, alternarMudo, pausarSom } from './render/som.js';
+import { alternarMinimizado } from './ui/cartao.js';
+import { avisosAtivos } from './sim/avisos.js';
 import { dePixel, chave } from './sim/hex.js';
 import { relogio } from './sim/estacoes.js';
 
@@ -26,6 +32,10 @@ const ui = {
   ajudaMelhorias: false, painel: null, rolagemCampos: 0, rolagemMax: 0, ovoSelecionado: null,
   salvoEm: null, saveFalhou: false, confirmandoNovoJogo: false,
   desafioEscolhido: null,
+  // Quais cartões o jogador encolheu. Enquadramento, não estado de jogo.
+  minimizados: {},
+  // Avisos que ele já abriu: é o que faz o sino parar de piscar.
+  avisosVistos: [],
   // Vista do jogador sobre o favo. Não é estado de jogo — não vai pro save,
   // e recomeçar não deve herdar o enquadramento da partida anterior.
   camera: { x: 0, y: 0, zoom: 1 },
@@ -69,6 +79,8 @@ let arrastando = null;
 
 canvas.addEventListener('pointerdown', (ev) => {
   ev.preventDefault();
+  // Política de autoplay: o áudio só pode nascer dentro de um gesto.
+  acordarSom();
   arrastando = {
     tipo: ui.painel === 'campos' ? 'rolagem' : 'camera',
     x: ev.clientX, y: ev.clientY, movido: 0,
@@ -149,7 +161,9 @@ function aoTocar(x, y) {
   // senão um toque distraído mexeria no favo com o jogo parado.
   if (estado.escolha) {
     const carta = zonaEm(x, y);
-    if (carta?.id === 'bencao:escolher') relatar(escolherBencao(estado, carta.dados.id));
+    // A dica fica por cima do modal e tem que poder sair da frente.
+    if (carta?.id === 'dica:fechar') fecharDica(estado);
+    else if (carta?.id === 'bencao:escolher') relatar(escolherBencao(estado, carta.dados.id));
     return;
   }
   const alvo = zonaEm(x, y);
@@ -180,6 +194,14 @@ function tratarZona(z) {
     case 'inverno:recolher':
       relatar(recolherTodas(estado));
       break;
+    case 'cartao:alternar':
+      alternarMinimizado(ui, z.dados.id);
+      break;
+    case 'formigas:vedar':
+      relatar(vedarEntrada(estado));
+      break;
+    case 'formigas:cartao':
+    case 'enxame:cartao':
     case 'encomenda:cartao':
     case 'inverno:cartao':
       break;                      // absorve o toque dentro do cartão
@@ -190,15 +212,27 @@ function tratarZona(z) {
       estado.velocidade = estado.velocidade === 0 ? 1 : 0;
       break;
     case 'rapido':
-      estado.velocidade = estado.velocidade > 1 ? 1 : 3;
+      // 3 → 6 → 10 → 1. Do Ano 6 em diante 3× já parece devagar, e o passo
+      // fixo de 1/30 s aguenta: a 10× são cinco passos por quadro a 60 fps.
+      estado.velocidade = proximaVelocidade(estado.velocidade);
       break;
     case 'velocidade':
-      // Botão único do layout compacto: pausado → normal → rápido → pausado.
-      estado.velocidade = estado.velocidade === 0 ? 1 : estado.velocidade === 1 ? 3 : 0;
+      // Botão único do layout compacto: pausado → 1× → 3× → 6× → 10× → pausado.
+      estado.velocidade = estado.velocidade === 0 ? 1
+        : estado.velocidade === 10 ? 0 : proximaVelocidade(estado.velocidade);
       break;
     case 'pote':
     case 'mercado':
       ui.painel = ui.painel === 'rax' ? null : 'rax';
+      break;
+    case 'avisos':
+      ui.painel = ui.painel === 'avisos' ? null : 'avisos';
+      // Abrir marca tudo como visto: o sino para de piscar até chegar algo
+      // que ainda não estava lá.
+      if (ui.painel === 'avisos') ui.avisosVistos = avisosAtivos(estado);
+      break;
+    case 'avisos:fundo':
+      ui.painel = null;
       break;
     case 'boosts':
       ui.painel = ui.painel === 'boosts' ? null : 'boosts';
@@ -214,6 +248,27 @@ function tratarZona(z) {
       ui.painel = ui.painel === 'menu' ? null : 'menu';
       ui.confirmandoNovoJogo = false;
       break;
+    case 'rainha:coroar':
+      relatar(coroarRainha(estado));
+      break;
+    case 'rainha:fechar':
+    case 'rainha:fundo':
+      ui.painel = null;
+      break;
+    case 'rainha:cartao':
+      break;                      // absorve o toque dentro do cartão
+    case 'menu:som':
+      alternarMudo();
+      break;
+    case 'menu:historico':
+      ui.painel = 'historico';
+      break;
+    case 'historico:fechar':
+    case 'historico:fundo':
+      ui.painel = 'menu';
+      break;
+    case 'historico:cartao':
+      break;                      // absorve o toque dentro da tabela
     case 'menu:desafio':
       ui.desafioEscolhido = z.dados.id;
       ui.confirmandoNovoJogo = false;
@@ -227,6 +282,9 @@ function tratarZona(z) {
     case 'menu:fundo':
       ui.painel = null;
       ui.confirmandoNovoJogo = false;
+      break;
+    case 'aluguel:enviar':
+      relatar(alugar(estado));
       break;
     case 'campo:alocar':
       relatar(alocar(estado, z.dados.campo, z.dados.tipo, z.dados.delta));
@@ -257,9 +315,15 @@ function tratarZona(z) {
     case 'campos:fundo':
       ui.painel = null;
       break;
-    case 'rax:vender':
-      relatar(vender(estado, z.dados.variedade, relogio(estado.decorrido).estacao, 1));
+    case 'rax:misturar':
+      relatar(misturar(estado));
       break;
+    case 'rax:vender': {
+      const r = vender(estado, z.dados.variedade, relogio(estado.decorrido).estacao, 1);
+      if (r.ok) tocar('vender');
+      relatar(r);
+      break;
+    }
     case 'rax:fechar':
     case 'rax:fundo':
       ui.painel = null;
@@ -280,19 +344,36 @@ function tratarFavo(x, y) {
     return;
   }
 
-  if (celula.estado === 'travada') relatar(comprarCelula(estado, celula));
-  else if (celula.estado === 'madura') relatar(colher(estado, celula));
+  if (celula.estado === 'rainha') ui.painel = 'rainha';
+  else if (celula.estado === 'travada') relatar(comprarCelula(estado, celula));
+  else if (celula.estado === 'madura') {
+    const r = colher(estado, celula);
+    if (r.ok) tocar('colher');
+    relatar(r);
+  }
   else if (celula.estado === 'ovo') ui.ovoSelecionado = chave(q, r);
   else ui.ovoSelecionado = null;
 }
 
+const VELOCIDADES = [1, 3, 6, 10];
+
+function proximaVelocidade(atual) {
+  const i = VELOCIDADES.indexOf(atual);
+  return VELOCIDADES[(i + 1) % VELOCIDADES.length] ?? 1;
+}
+
 function relatar(resultado) {
-  if (resultado && !resultado.ok) avisar(estado, resultado.motivo);
+  if (resultado && !resultado.ok) {
+    avisar(estado, resultado.motivo);
+    tocar('aviso');
+  }
 }
 
 function recomecar() {
-  apagar();
+  apagar();                     // só a partida: conquistas ficam
   centralizar();
+  vitoriaRegistrada = false;
+  ultimoAnoVisto = 0;
   estado = novoJogo(undefined, ui.desafioEscolhido ?? undefined);
   ui.painel = null;
   ui.ajudaMelhorias = false;
@@ -305,6 +386,8 @@ function recomecar() {
 // ------------------------------------------------------------------ save
 
 let desdeUltimoSave = 0;
+let vitoriaRegistrada = false;
+let ultimoAnoVisto = 0;
 
 function gravar() {
   const ok = salvar(estado);
@@ -323,6 +406,7 @@ window.addEventListener('beforeunload', gravar);
 // às vezes só reduz o `requestAnimationFrame` em vez de suspendê-lo, então o
 // laço checa `document.hidden` em vez de confiar nisso.
 document.addEventListener('visibilitychange', () => {
+  pausarSom(document.hidden);
   if (document.hidden) {
     gravar();
     return;
@@ -350,11 +434,22 @@ function quadro(agora) {
       acumulado -= TICK;
     }
 
+    // Conquistas sobrevivem ao recomeço, então são gravadas fora do save.
+    if (estado.vitoria && !vitoriaRegistrada) {
+      vitoriaRegistrada = true;
+      registrarVitoria();
+    }
+    if (estado.ano !== ultimoAnoVisto) {
+      ultimoAnoVisto = estado.ano;
+      registrarAno(estado.ano);
+    }
+
     desdeUltimoSave += bruto;
     if (desdeUltimoSave >= INTERVALO_SALVAR) gravar();
   }
 
   // Abaixo disso o layout do HUD produz larguras negativas; nada a desenhar.
+  atualizarSom(estado);
   if (L > 320 && A > 240) desenhar(ctx, estado, L, A, bruto, ui);
   requestAnimationFrame(quadro);
 }

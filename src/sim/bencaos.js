@@ -1,4 +1,5 @@
 import { sortear } from '../core/rng.js';
+import { mostrarDica } from './dicas.js';
 
 // Bênção da primavera: uma escolha por ano, entre três cartas. É o que faz duas
 // partidas com a mesma semente correrem diferente — todo o resto do jogo é
@@ -157,6 +158,7 @@ export function abrirEscolha(estado) {
   if (!opcoes.length) return false;
   estado.escolha = { opcoes };
   estado.velocidade = 0;
+  mostrarDica(estado, 'primavera');
   return true;
 }
 

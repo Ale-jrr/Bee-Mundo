@@ -15,6 +15,18 @@ import {
 } from '../src/render/favo.js';
 import { dePixel } from '../src/sim/hex.js';
 import { DICAS, mostrarDica, fecharDica } from '../src/sim/dicas.js';
+import { ritmoDoAr, limiteDeFome, AR } from '../src/sim/clima.js';
+import { pressaoDoEnxame, ENXAME } from '../src/sim/enxame.js';
+import { tempoAtivo, fatorDaColeta, fatorDaRebrota, TEMPO } from '../src/sim/tempo.js';
+import { FORMIGAS, vedarEntrada, formigasAtacando } from '../src/sim/formigas.js';
+import {
+  RAINHA, vigorDaRainha, intervaloDePostura, emInterregno, idadeDaRainha,
+} from '../src/sim/rainha.js';
+import { ALUGUEL, MISTURA, vagasDoCampo, UPGRADES, CAMPOS } from '../src/sim/economia.js';
+import { SEGUNDOS_POR_ANO } from '../src/sim/estacoes.js';
+import * as K from '../src/core/conquistas.js';
+import { estaMinimizado, alternarMinimizado, recuoDoBotao } from '../src/ui/cartao.js';
+import { avisosAtivos, avisosNovos, temUrgente } from '../src/sim/avisos.js';
 import * as S from '../src/core/save.js';
 import { DESAFIO_PADRAO, regraDoDesafio, penalidadeDoInverno } from '../src/sim/desafios.js';
 import {
@@ -547,12 +559,14 @@ export function rodar() {
 
   // Na partida: abre na florada e some quando ela acaba.
   const emJogo = novoJogo(42);
+  // Conta só a dica da florada: outras mecânicas (tempo, vespa, formigas)
+  // também abrem a sua nesse intervalo, e antes o teste somava todas.
   let abriu9 = 0, fechouSozinha = false;
   for (let i = 0; i < 30 * 200; i++) {
     const antes = emJogo.dica;
     passo(emJogo, 1 / 30);
-    if (!antes && emJogo.dica) abriu9++;
-    if (antes && !emJogo.dica) fechouSozinha = true;
+    if (antes !== 'florada' && emJogo.dica === 'florada') abriu9++;
+    if (antes === 'florada' && emJogo.dica !== 'florada') fechouSozinha = true;
   }
   ok('a florada abre a dica', abriu9 === 1, `${abriu9} vezes`);
   ok('e ela some com o fim da florada', fechouSozinha);
@@ -565,6 +579,276 @@ export function rodar() {
   ok('as dicas vistas sobrevivem ao save',
     voltouDica.dicasVistas.florada === 2, JSON.stringify(voltouDica.dicasVistas));
   ok('e não reaparecem', mostrarDica(voltouDica, 'florada') === false);
+
+
+  // ---------------------------------------------- 10. aluguel de polinização
+
+  const apiario = novoJogo(42);
+  apiario.campos.forEach((c) => { c.alocadas = 0; c.polenAlocadas = 0; });
+  const moedasAntesAluguel = apiario.moedas;
+  ok('alugar devolve ok', A.alugar(apiario).ok === true);
+  const alugada = apiario.abelhas.find((a) => a.estado === 'alugada');
+  ok('a abelha sai da colmeia', alugada !== undefined);
+  ok('e leva o prazo combinado', alugada.restaAluguel === ALUGUEL.duracao);
+  ok('alugar não paga adiantado', apiario.moedas === moedasAntesAluguel);
+  for (let i = 0; i < 30 * (ALUGUEL.duracao + 2); i++) passo(apiario, 1 / 30);
+  ok('volta e paga no fim', apiario.moedas === moedasAntesAluguel + ALUGUEL.pagamento,
+    `${apiario.moedas} vs ${moedasAntesAluguel + ALUGUEL.pagamento}`);
+  ok('e volta a ser operária da casa',
+    apiario.abelhas.every((a) => a.estado !== 'alugada'));
+
+  const inverno10 = novoJogo(42);
+  inverno10.decorrido = SEGUNDOS_POR_ESTACAO * 3 + 5;
+  ok('no inverno não aluga', A.alugar(inverno10).ok === false);
+
+  // ------------------------------------------------- 11. CO2 e umidade
+
+  ok('ar limpo não atrapalha', ritmoDoAr({ co2: 400, umidade: 55 }) === 1);
+  ok('ar abafado atrasa o favo', ritmoDoAr({ co2: 2000, umidade: 55 }) < 1);
+  ok('o atraso do ar tem teto',
+    Math.abs(ritmoDoAr({ co2: 99999, umidade: 55 }) - (1 - AR.co2NoRitmo)) < 1e-9);
+  ok('umidade na faixa não muda a fome', limiteDeFome({ co2: 400, umidade: 55 }, 45) === 45);
+  ok('ar seco adianta a fome', limiteDeFome({ co2: 400, umidade: 10 }, 45) < 45);
+
+  // Sem conseguir comer, a fome não pode cair: era o bug que o teste de
+  // inverno pegou quando o limite passou a variar com o clima.
+  const faminta = novoJogo(42);
+  const op11 = faminta.abelhas.find((a) => a.papel === 'operaria');
+  for (const v of Object.keys(faminta.pote)) faminta.pote[v] = 0;
+  Object.assign(op11, { fome: 45, trabalho: { tipo: 'comer', resta: 0.001, total: 2 } });
+  passo(faminta, 1 / 30);
+  ok('sem mel a fome não baixa', op11.fome >= 45, `${op11.fome}`);
+
+  // ------------------------------------------------- 12. vagas de campo
+
+  const campo12 = novoJogo(42).campos[0];
+  const vagasBase = vagasDoCampo(campo12);
+  ok('vagas partem do catálogo', vagasBase === campo12.slots);
+  campo12.upgrades.posto = 2;
+  ok('cada posto abre uma vaga',
+    vagasDoCampo(campo12) === vagasBase + 2 * UPGRADES.posto.ganho);
+
+  const escalado = novoJogo(42);
+  escalado.moedas = 1e6;
+  for (let i = 0; i < 12; i++) A.nascerAbelha(escalado);
+  escalado.campos[0].alocadas = 0;
+  let coube = 0;
+  while (A.alocar(escalado, 'campainhas', 'nectar', 1).ok) coube++;
+  ok('a alocação respeita as vagas', coube === vagasDoCampo(escalado.campos[0]),
+    `${coube} de ${vagasDoCampo(escalado.campos[0])}`);
+  A.comprarUpgrade(escalado, 'campainhas', 'posto');
+  ok('e o posto abre lugar na hora', A.alocar(escalado, 'campainhas', 'nectar', 1).ok === true);
+
+  // -------------------------------------------------- 13. enxameação
+
+  const apertada = novoJogo(7);
+  for (let i = 0; i < 30; i++) A.nascerAbelha(apertada);
+  const pressao = pressaoDoEnxame(apertada);
+  ok('colmeia lotada fica apertada', pressao.apertado === true);
+  ok('e diz quantas células faltam', pressao.celulasQueFaltam > 0);
+
+  const folgada = novoJogo(7);
+  ok('colônia pequena não enxameia', pressaoDoEnxame(folgada).apertado === false);
+
+  const antesEnxame = apertada.abelhas.length;
+  const moedas13 = apertada.moedas;
+  for (let i = 0; i < 30 * (ENXAME.aviso + 2); i++) passo(apertada, 1 / 30);
+  ok('metade parte', apertada.abelhas.length < antesEnxame * 0.7,
+    `${antesEnxame} -> ${apertada.abelhas.length}`);
+  ok('e o enxame é vendido', apertada.moedas > moedas13);
+  ok('a rainha nunca vai embora',
+    apertada.abelhas.some((a) => a.papel === 'rainha'));
+  ok('as turmas não ficam mentindo',
+    apertada.campos.every((c) => c.alocadas
+      <= apertada.abelhas.filter((a) => a.campo === c.id && a.recurso === 'nectar').length));
+
+  // Abrir espaço a tempo cancela.
+  const salva = novoJogo(7);
+  for (let i = 0; i < 30; i++) A.nascerAbelha(salva);
+  salva.moedas = 1e6;
+  for (let i = 0; i < 30 * 3; i++) passo(salva, 1 / 30);
+  ok('o aviso abre antes de partir', salva.enxame !== null);
+  const quantasAntes = salva.abelhas.length;
+  for (let i = 0; i < 14; i++) {
+    const t13 = celulasArray(salva).find((c) => c.estado === 'travada');
+    if (t13) A.comprarCelula(salva, t13);
+  }
+  for (let i = 0; i < 30 * 3; i++) passo(salva, 1 / 30);
+  ok('comprar célula cancela o enxame', salva.enxame === null);
+  ok('e ninguém foi embora', salva.abelhas.length === quantasAntes);
+
+  // ------------------------------------------------ 14. chuva e seca
+
+  ok('sem tempo virado nada muda',
+    fatorDaColeta(novoJogo(1)) === 1 && fatorDaRebrota(novoJogo(1)) === 1);
+  const chovendo = { tempo: { tipo: 'chuva', resta: 5 } };
+  ok('chuva derruba a coleta', fatorDaColeta(chovendo) === TEMPO.chuva.coleta);
+  ok('e não mexe na rebrota', fatorDaRebrota(chovendo) === 1);
+  const secando = { tempo: { tipo: 'seca', resta: 5 } };
+  ok('seca derruba a rebrota', fatorDaRebrota(secando) === TEMPO.seca.rebrota);
+  ok('e não mexe na coleta', fatorDaColeta(secando) === 1);
+
+  const comTempo = novoJogo(42);
+  let viu = null;
+  for (let i = 0; i < 30 * 200; i++) {
+    passo(comTempo, 1 / 30);
+    if (tempoAtivo(comTempo)) { viu = tempoAtivo(comTempo).tipo; break; }
+  }
+  ok('o tempo vira sozinho durante a partida', viu !== null, 'nada em 200 s');
+
+  const geladoTempo = novoJogo(3);
+  geladoTempo.decorrido = SEGUNDOS_POR_ESTACAO * 3 + 5;
+  geladoTempo.proximoTempo = 0;
+  for (let i = 0; i < 30 * 20; i++) passo(geladoTempo, 1 / 30);
+  ok('não chove no inverno', tempoAtivo(geladoTempo) === null);
+
+  // --------------------------------------------------- 15. mel misturado
+
+  const vidro = novoJogo(1);
+  ok('sem as três não mistura', A.misturar(vidro).ok === false);
+  for (const v of MISTURA.entrada) vidro.pote[v] = 1;
+  ok('com as três mistura', A.misturar(vidro).ok === true);
+  ok('gasta um de cada', MISTURA.entrada.every((v) => vidro.pote[v] === 0));
+  ok('e rende um do misturado', vidro.pote[MISTURA.saida] === 1);
+  const soma = MISTURA.entrada.reduce((n, v) => n + VARIEDADES[v].base, 0);
+  ok('o misturado vale mais que a soma', VARIEDADES[MISTURA.saida].base > soma,
+    `${VARIEDADES[MISTURA.saida].base} vs ${soma}`);
+  ok('nenhum campo produz o misturado',
+    CAMPOS.every((c) => c.variedade !== MISTURA.saida));
+
+  // ----------------------------------------------------- 16. rainha
+
+  const jovem = novoJogo(42);
+  ok('rainha nova está no auge', vigorDaRainha(jovem) === 1);
+  jovem.decorrido = SEGUNDOS_POR_ANO * (RAINHA.augeAnos + RAINHA.declinioAnos + 2);
+  ok('rainha velha chega ao mínimo',
+    Math.abs(vigorDaRainha(jovem) - RAINHA.vigorMinimo) < 1e-9);
+  ok('e demora mais a pôr',
+    intervaloDePostura(jovem) > intervaloDePostura(novoJogo(42)));
+
+  const corte = novoJogo(42);
+  corte.decorrido = SEGUNDOS_POR_ANO * 6;
+  corte.ano = 7;
+  ok('sem mel não coroa', A.coroarRainha(corte).ok === false);
+  for (const v of Object.keys(corte.pote)) corte.pote[v] = 0;
+  corte.pote.silvestre = RAINHA.custoMel;
+  ok('com mel coroa', A.coroarRainha(corte).ok === true);
+  ok('o mel é cobrado',
+    Object.values(corte.pote).reduce((n, v) => n + v, 0) === 0);
+  ok('e abre a janela sem postura', emInterregno(corte) === true);
+  ok('coroar de novo no interregno é recusado', A.coroarRainha(corte).ok === false);
+  for (let i = 0; i < 30 * (RAINHA.interregno + 1); i++) passo(corte, 1 / 30);
+  ok('a janela fecha sozinha', emInterregno(corte) === false);
+  ok('e a rainha nova está no auge', vigorDaRainha(corte) === 1);
+  ok('idade zera com a troca', idadeDaRainha(corte) < SEGUNDOS_POR_ANO);
+
+  // ------------------------------------------------- 17. quarto campo
+
+  const urzal = CAMPOS.find((c) => c.id === 'urzal');
+  ok('o urzal existe', urzal !== undefined);
+  ok('é o mais rápido', CAMPOS.every((c) => c.taxa <= urzal.taxa));
+  ok('é perto e seguro', urzal.risco === 0 && urzal.viagem < 8);
+  ok('mas se recompõe devagar', urzal.rebrota < 1);
+  ok('e guarda pouco', urzal.nectarMax < CAMPOS.find((c) => c.id === 'acacias').nectarMax);
+
+  // ------------------------------------------------- 18. formigas
+
+  const colmeia18 = novoJogo(3);
+  colmeia18.pote.silvestre = 5;
+  colmeia18.moedas = 100;
+  colmeia18.proximaFormiga = 0;
+  passo(colmeia18, 1 / 30);
+  ok('as formigas atacam', formigasAtacando(colmeia18) !== null);
+  for (let i = 0; i < 30 * 5; i++) passo(colmeia18, 1 / 30);
+  ok('e levam mel enquanto ninguém age', colmeia18.pote.silvestre < 5);
+  const moedas18 = colmeia18.moedas;
+  const potePos = colmeia18.pote.silvestre;
+  ok('vedar devolve ok', vedarEntrada(colmeia18).ok === true);
+  ok('vedar custa moedas', colmeia18.moedas === moedas18 - FORMIGAS.custoVedar);
+  ok('e o roubo para', formigasAtacando(colmeia18) === null);
+  for (let i = 0; i < 30 * 5; i++) passo(colmeia18, 1 / 30);
+  ok('depois de vedado o mel fica', colmeia18.pote.silvestre >= potePos - 1e-6);
+  ok('sem formiga não dá pra vedar', vedarEntrada(colmeia18).ok === false);
+
+  const semMoeda = novoJogo(3);
+  semMoeda.moedas = 0;
+  semMoeda.proximaFormiga = 0;
+  passo(semMoeda, 1 / 30);
+  ok('sem moeda não veda', vedarEntrada(semMoeda).ok === false);
+
+  // --------------------------------------------- 19. dicas das outras
+
+  for (const id of ['florada', 'tempo', 'enxame', 'formigas', 'encomenda', 'vespa', 'inverno', 'primavera']) {
+    ok(`existe dica de ${id}`, DICAS[id] !== undefined && DICAS[id].linhas.length > 0);
+  }
+
+  // ------------------------------------------------- 20. conquistas
+
+  K.apagarConquistas();
+  ok('começa sem nada', K.ler().venceu === false);
+  ok('desafios travados de início', K.desafiosLiberados() === false);
+  K.registrarVitoria();
+  ok('vencer libera os desafios', K.desafiosLiberados() === true);
+  ok('e o melhor ano é guardado', K.registrarAno(5) === true && K.ler().melhorAno === 5);
+  ok('ano pior não sobrescreve', K.registrarAno(3) === false && K.ler().melhorAno === 5);
+  K.apagarConquistas();
+
+  // ------------------------------------------- 21. cartões minimizáveis
+
+  const cartoes = {};
+  ok('cartão começa aberto', estaMinimizado(cartoes, 'enxame') === false);
+  alternarMinimizado(cartoes, 'enxame');
+  ok('minimizar marca só aquele', estaMinimizado(cartoes, 'enxame') === true
+    && estaMinimizado(cartoes, 'formigas') === false);
+  alternarMinimizado(cartoes, 'enxame');
+  ok('e o mesmo toque devolve', estaMinimizado(cartoes, 'enxame') === false);
+  ok('ui ausente não quebra', estaMinimizado(undefined, 'enxame') === false);
+  alternarMinimizado(undefined, 'enxame');           // não pode lançar
+  ok('alternar sem ui não quebra', true);
+
+  // O recuo do botão existe para o número do título não ficar embaixo dele.
+  for (const [L21, A21] of [[1280, 720], [375, 812]]) {
+    const m21 = medidas(L21, A21);
+    ok(`o botão reserva espaço em ${L21}`, recuoDoBotao(m21) >= 28);
+  }
+
+  // ------------------------------------------------ 22. sino de avisos
+
+  const calmo = novoJogo(42);
+  ok('colmeia calma não tem aviso', avisosAtivos(calmo).length === 0);
+  ok('e o sino não pisca', temUrgente(calmo) === false);
+
+  const agitado = novoJogo(42);
+  agitado.enxame = { resta: 20 };
+  agitado.formigas = { resta: 10, roubado: 0 };
+  agitado.ameaca = { resta: 8 };
+  agitado.encomenda = { variedade: 'trevo', quantidade: 3, entregue: 0, vence: 999, recompensa: 40 };
+  const ativos22 = avisosAtivos(agitado);
+  ok('lista tudo que está valendo', ativos22.length === 4, ativos22.join(','));
+  ok('urgente vem antes do informativo',
+    ativos22.indexOf('enxame') < ativos22.indexOf('encomenda'));
+  const soEncomenda = novoJogo(42);
+  soEncomenda.encomenda = agitado.encomenda;
+  ok('encomenda sozinha não faz piscar', temUrgente(soEncomenda) === false);
+  ok('e ainda assim aparece na lista',
+    avisosAtivos(soEncomenda).join(',') === 'encomenda');
+  ok('ameaça faz piscar', temUrgente(agitado) === true);
+
+  ok('tudo é novo antes de abrir', avisosNovos(agitado, []).length === 4);
+  ok('nada é novo depois de abrir',
+    avisosNovos(agitado, avisosAtivos(agitado)).length === 0);
+  agitado.tempo = null;
+  agitado.ameaca = null;
+  agitado.formigas = null;
+  agitado.enxame = { resta: 5 };
+  agitado.encomenda = null;
+  ok('o que sumiu sai da lista', avisosAtivos(agitado).join(',') === 'enxame');
+
+  // Um aviso que chega depois de o jogador ter aberto o painel volta a ser novo.
+  const vistosAntes = ['enxame'];
+  agitado.formigas = { resta: 9, roubado: 0 };
+  ok('aviso que chega depois volta a ser novo',
+    avisosNovos(agitado, vistosAntes).join(',') === 'formigas');
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

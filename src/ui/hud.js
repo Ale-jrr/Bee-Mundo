@@ -2,6 +2,8 @@ import { pilula, retanguloArredondado, rotulo, numero, barra, FONTE } from '../r
 import { SEGUNDOS_POR_ESTACAO } from '../sim/estacoes.js';
 import { CLIMA, BOOSTS, metaDoAno } from '../sim/economia.js';
 import { campoEmFlorada } from '../sim/floradas.js';
+import { avisosAtivos, avisosNovos, temUrgente } from '../sim/avisos.js';
+import { tempoAtivo } from '../sim/tempo.js';
 import { zona } from './zonas.js';
 import { medidas, colunas, areaDoPote, areaDoClima, barraSuperior } from './layout.js';
 
@@ -10,7 +12,7 @@ export function desenharHud(ctx, estado, pal, t, L, A, ui = {}) {
   desenharBarraSuperior(ctx, estado, pal, t, m);
   desenharClima(ctx, estado, pal, m);
   desenharPote(ctx, estado, pal, m);
-  desenharAcoes(ctx, estado, pal, m);
+  desenharAcoes(ctx, estado, pal, m, ui);
   if (ui.painel === 'boosts') desenharBoosts(ctx, estado, pal, m);
 }
 
@@ -153,7 +155,14 @@ function desenharBarraSuperior(ctx, estado, pal, t, m) {
   const tempo = `${Math.floor(restante / 60)}:${String(restante % 60).padStart(2, '0')}`;
   ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillStyle = pal.css('tinta'); ctx.font = `700 ${compacto ? 13 : 14}px ${FONTE}`;
-  ctx.fillText(`${t.estacao.nome} · faltam ${tempo}`, fx + fl / 2, fy + fa * 0.32, fl - 16);
+  // A chuva e a seca entram na linha da estação: é onde o jogador já olha pra
+  // saber o que está acontecendo com o tempo.
+  const clima = tempoAtivo(estado);
+  ctx.fillStyle = clima ? '#b8484a' : pal.css('tinta');
+  ctx.fillText(clima
+    ? `${t.estacao.nome} · ${clima.nome} ${Math.ceil(clima.resta)}s`
+    : `${t.estacao.nome} · faltam ${tempo}`, fx + fl / 2, fy + fa * 0.32, fl - 16);
+  ctx.fillStyle = pal.css('tinta');
   const ritmo = estado.velocidade === 0 ? 'pausado' : `${estado.velocidade}×`;
   ctx.font = `400 10px ${FONTE}`;
   ctx.fillText(`${passou}/${SEGUNDOS_POR_ESTACAO}s · próxima: ${t.proxima.nome} · ${ritmo}`, fx + fl / 2, fy + fa * 0.7, fl - 16);
@@ -281,12 +290,64 @@ function desenharPote(ctx, estado, pal, m) {
 }
 
 const ACOES = [
+  { id: 'avisos', glifo: null },     // sino, desenhado à mão
   { id: 'boosts', glifo: '⚡' },
   { id: 'mercado', glifo: '↗' },
   { id: 'campos', glifo: '✿' },
 ];
 
-function desenharAcoes(ctx, estado, pal, m) {
+// Sino desenhado em caminho, e não como emoji: emoji muda de forma em cada
+// sistema e aqui ele precisa parecer com o resto dos ícones.
+function sino(ctx, x, y, r, cor) {
+  ctx.save();
+  ctx.fillStyle = cor;
+  ctx.beginPath();
+  ctx.moveTo(x - r, y + r * 0.55);
+  ctx.quadraticCurveTo(x - r * 0.75, y + r * 0.4, x - r * 0.72, y - r * 0.1);
+  ctx.quadraticCurveTo(x - r * 0.7, y - r * 0.95, x, y - r);
+  ctx.quadraticCurveTo(x + r * 0.7, y - r * 0.95, x + r * 0.72, y - r * 0.1);
+  ctx.quadraticCurveTo(x + r * 0.75, y + r * 0.4, x + r, y + r * 0.55);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x, y + r * 0.78, r * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// Sino com contador. Pisca enquanto houver aviso que o jogador ainda não
+// abriu — e só por causa dos urgentes, que são os que custam alguma coisa se
+// forem ignorados. A encomenda entra na conta, mas não faz piscar.
+function desenharSino(ctx, estado, pal, x, y, a, ui) {
+  const ativos = avisosAtivos(estado);
+  const novos = avisosNovos(estado, ui.avisosVistos ?? []);
+  const piscando = novos.length > 0 && temUrgente(estado);
+  const pulso = piscando ? 0.45 + 0.55 * Math.abs(Math.sin(performance.now() / 320)) : 1;
+
+  ctx.save();
+  ctx.globalAlpha = pulso;
+  sino(ctx, x + a / 2, y + a / 2 - a * 0.04, a * 0.2, pal.css('escuro'));
+  ctx.restore();
+
+  if (!ativos.length) return;
+  const r = a * 0.17;
+  const bx = x + a - r * 1.15;
+  const by = y + r * 1.15;
+  ctx.save();
+  ctx.globalAlpha = pulso;
+  ctx.beginPath();
+  ctx.arc(bx, by, r, 0, Math.PI * 2);
+  ctx.fillStyle = novos.length ? '#b8484a' : pal.css('escuro', 0.55);
+  ctx.fill();
+  ctx.font = `700 ${Math.round(r * 1.25)}px ${FONTE}`;
+  ctx.fillStyle = '#fff3d0';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(String(ativos.length), bx, by + 0.5);
+  ctx.restore();
+}
+
+function desenharAcoes(ctx, estado, pal, m, ui = {}) {
   const { acao: a, margem, L, A, esc } = m;
   const espaco = Math.round(10 * esc);
   const y = A - a - margem;
@@ -294,15 +355,17 @@ function desenharAcoes(ctx, estado, pal, m) {
   ACOES.forEach((item, i) => {
     const x = L - margem - (ACOES.length - i) * (a + espaco) + espaco;
     retanguloArredondado(ctx, x, y, a, a, m.raio);
-    ctx.fillStyle = i === 0 ? pal.css('hud', 0.55) : pal.css('cheia');
+    ctx.fillStyle = item.id === 'boosts' ? pal.css('hud', 0.55) : pal.css('cheia');
     ctx.fill();
     ctx.save();
     ctx.font = `700 ${Math.round(a * 0.42)}px ${FONTE}`;
     ctx.fillStyle = i === 0 ? pal.css('cheia') : pal.css('escuro');
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(item.glifo, x + a / 2, y + a / 2 + 2);
+    if (item.glifo) ctx.fillText(item.glifo, x + a / 2, y + a / 2 + 2);
     ctx.restore();
+
+    if (item.id === 'avisos') desenharSino(ctx, estado, pal, x, y, a, ui);
 
     // Selo pulsante no botão de campos enquanto há florada: a oportunidade
     // dura 25 s e mora dentro de um painel fechado — sem chamado aqui fora,

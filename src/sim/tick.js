@@ -5,6 +5,13 @@ import { atualizarFloradas, statsComFlorada } from './floradas.js';
 import { atualizarEncomendas } from './encomendas.js';
 import { abrirEscolha, bonusBencao, descontoBencao, fatorDoInverno } from './bencaos.js';
 import { regraDoDesafio, penalidadeDoInverno } from './desafios.js';
+import { ritmoDoAr, limiteDeFome } from './clima.js';
+import { atualizarEnxame } from './enxame.js';
+import { atualizarTempo, fatorDaColeta, fatorDaRebrota } from './tempo.js';
+import { atualizarRainha, intervaloDePostura, emInterregno } from './rainha.js';
+import { atualizarFormigas } from './formigas.js';
+import { mostrarDica } from './dicas.js';
+import { AVISO_INVERNO } from './inverno.js';
 import { fatorColeta, fatorProducao, fatorRisco, melhorPara } from './talentos.js';
 import { relogio, fatorDeColeta, fatorDoFavo } from './estacoes.js';
 import {
@@ -36,6 +43,15 @@ export function passo(estado, dt) {
   atualizarMercado(estado, dt);
   atualizarFloradas(estado, t, dt);
   atualizarEncomendas(estado, t, dt);
+  atualizarEnxame(estado, t, dt);
+  atualizarTempo(estado, t, dt);
+  atualizarRainha(estado, dt);
+  atualizarFormigas(estado, t, dt);
+  // A dica do inverno abre junto com o painel de preparação: é o momento em
+  // que ela tem o que explicar.
+  if (t.estacao.id === 'outono' && t.restamSegundos <= AVISO_INVERNO) {
+    mostrarDica(estado, 'inverno');
+  }
   atualizarCampos(estado, t, dt);
   atualizarAbelhas(estado, t, dt);
   atualizarAluguel(estado, dt);
@@ -130,7 +146,10 @@ function atualizarMercado(estado, dt) {
 function atualizarCampos(estado, t, dt) {
   for (const campo of estado.campos) {
     const { nectarMax } = statsComFlorada(campo);
-    const porSegundo = (nectarMax * t.estacao.rebrota) / 60;
+    // `campo.rebrota` é o multiplicador próprio do campo: o Urzal se recompõe
+    // a um quarto da velocidade dos outros, e é isso que o torna um sprint.
+    const porSegundo = (nectarMax * t.estacao.rebrota * fatorDaRebrota(estado)
+      * (campo.rebrota ?? 1)) / 60;
     campo.nectar = Math.min(nectarMax, campo.nectar + porSegundo * dt);
   }
 }
@@ -151,7 +170,8 @@ function atualizarAbelhas(estado, t, dt) {
   const rendimento = fatorDeColeta(t.estacao)
     * fatorDoInverno(estado, t.estacao) * penalidadeDoInverno(estado, t.estacao)
     * (estado.turbo?.multiplicador ?? 1)
-    * (1 + FEROMONIO.poder * bonusBencao(estado, 'feromonio') * coberturaFeromonio(estado));
+    * (1 + FEROMONIO.poder * bonusBencao(estado, 'feromonio') * coberturaFeromonio(estado))
+    * fatorDaColeta(estado);
   const perdidas = [];
   let mortasDeFrio = 0;
 
@@ -332,6 +352,11 @@ function atualizarPasseio(estado, dt, estacao) {
   const abertas = celulasArray(estado).filter((c) => c.estado !== 'travada');
   if (!abertas.length) return;
 
+  // Ar abafado atrasa tudo o que acontece dentro do favo, e o ar seco adianta
+  // a fome. Calculados uma vez por passo: valem pra colmeia inteira.
+  const ar = ritmoDoAr(estado.clima);
+  const fomeLimite = limiteDeFome(estado.clima, TRABALHO.segundosEntreRefeicoes);
+
   for (const abelha of estado.abelhas) {
     if (abelha.estado !== 'colmeia' && abelha.estado !== 'rainha') continue;
 
@@ -344,7 +369,7 @@ function atualizarPasseio(estado, dt, estacao) {
 
     // Faminta trabalha e anda pela metade — atrasa a colmeia, não a paralisa.
     const faminta = abelha.papel === 'operaria'
-      && abelha.fome >= TRABALHO.segundosEntreRefeicoes;
+      && abelha.fome >= fomeLimite;
     const lentidao = faminta ? TRABALHO.penalidadeFome : 1;
 
     // Trabalhando: a barrinha sobre a abelha é este progresso.
@@ -356,7 +381,7 @@ function atualizarPasseio(estado, dt, estacao) {
         ? (0.6 + 0.4 * saudeDoClima(estado.clima)) * fatorDoFavo(estacao)
           * fatorDoInverno(estado, estacao) * penalidadeDoInverno(estado, estacao)
         : 1;
-      abelha.trabalho.resta -= dt * lentidao * ambiente * fatorProducao(abelha);
+      abelha.trabalho.resta -= dt * lentidao * ambiente * fatorProducao(abelha) * ar;
       abelha.t = 1 - Math.max(0, abelha.trabalho.resta) / abelha.trabalho.total;
       if (abelha.trabalho.resta <= 0) {
         concluirTrabalho(estado, abelha);
@@ -374,7 +399,7 @@ function atualizarPasseio(estado, dt, estacao) {
       continue;
     }
 
-    abelha.andar += (dt * lentidao * fatorProducao(abelha))
+    abelha.andar += (dt * lentidao * fatorProducao(abelha) * ar)
       / (PASSEIO.segundosPorCelula * descontoBencao(estado, 'passo'));
     if (abelha.andar < 1) continue;
 
@@ -396,7 +421,7 @@ function atualizarPasseio(estado, dt, estacao) {
     // Carregar pólen só conta como propósito se houver mesmo aonde levar. Sem
     // célula com néctar, a abelha ficava andando em círculo de bolsa cheia.
     const comPropósito = indoTrabalhar
-      || abelha.fome >= TRABALHO.segundosEntreRefeicoes
+      || abelha.fome >= limiteDeFome(estado.clima, TRABALHO.segundosEntreRefeicoes)
       || (abelha.papel === 'rainha' && prontaParaPor(estado));
     abelha.pausa = comPropósito ? 0
       : PASSEIO.pausaMin + sortear(estado) * (PASSEIO.pausaMax - PASSEIO.pausaMin);
@@ -416,7 +441,8 @@ function iniciarTrabalho(estado, abelha) {
   // do pote do jogador, não da célula. Fazê-la desviar até uma célula madura
   // custava mais tempo que os 50% de lentidão da fome — alimentar a colmeia
   // saía pior que deixá-la faminta, que é o contrário do que a regra quer.
-  if (abelha.fome >= TRABALHO.segundosEntreRefeicoes && temMelNoPote(estado)) {
+  if (abelha.fome >= limiteDeFome(estado.clima, TRABALHO.segundosEntreRefeicoes)
+      && temMelNoPote(estado)) {
     abelha.trabalho = { tipo: 'comer', resta: TRABALHO.segundosComendo, total: TRABALHO.segundosComendo };
     abelha.t = 0;
     return true;
@@ -478,7 +504,11 @@ function concluirTrabalho(estado, abelha) {
       * descontoBencao(estado, 'apetite');
     // O jogador pode vender enquanto a abelha come; sem alimento não sacia.
     const comeu = consumirMel(estado, refeicao);
-    abelha.fome = Math.max(0, TRABALHO.segundosEntreRefeicoes * (1 - comeu / refeicao));
+    // Desconta só o que ela realmente comeu. Antes a fome era **reescrita**
+    // para o limite: sem mel no vidro ela continuava faminta, mas se o limite
+    // tivesse subido (ar mais úmido) ela saía da fome sem ter comido nada.
+    const limite = limiteDeFome(estado.clima, TRABALHO.segundosEntreRefeicoes);
+    abelha.fome = Math.max(0, abelha.fome - limite * (comeu / refeicao));
   } else if (tipo === 'polen') {
     abelha.polen += consumirPolen(estado, TRABALHO.capacidadePolen - abelha.polen);
   } else if (tipo === 'cura' && podeCurarCom(estado, abelha, celula)) {
@@ -556,7 +586,9 @@ function atualizarNinhada(estado, dt) {
   if (estado.proximaPostura > 0) estado.proximaPostura -= dt;
   else estado.proximaPostura = 0;
 
-  if (estado.proximaPostura <= 0 && ritmo >= NINHADA.ritmoMinimoParaPor) {
+  // Sem rainha no posto não há postura: é a janela que a troca custa.
+  if (estado.proximaPostura <= 0 && ritmo >= NINHADA.ritmoMinimoParaPor
+      && !emInterregno(estado)) {
     const rainha = estado.abelhas.find((a) => a.papel === 'rainha');
     const ondeEla = rainha && rainha.andar === 0 ? estado.celulas[rainha.de] : null;
     const alvo = celulaParaPostura(estado);
@@ -574,7 +606,7 @@ function atualizarNinhada(estado, dt) {
       const ovos = ovosDaCelula(alvo);
       ovos.push({ id: alvo.proximoOvo++, cura: 0 });
       sincronizarOvos(alvo);
-      estado.proximaPostura = NINHADA.segundosPostura;
+      estado.proximaPostura = intervaloDePostura(estado);
     }
   }
 

@@ -1,6 +1,6 @@
 import { retanguloArredondado, pilula, rotulo, numero, larguraRotulo, FONTE } from '../render/desenho.js';
 import { zona, definirRecorte } from './zonas.js';
-import { UPGRADES, VARIEDADES, custoUpgrade } from '../sim/economia.js';
+import { UPGRADES, VARIEDADES, custoUpgrade, ALUGUEL, vagasDoCampo } from '../sim/economia.js';
 import { statsComFlorada } from '../sim/floradas.js';
 import { TALENTOS, elenco } from '../sim/talentos.js';
 import { medidas, colunas } from './layout.js';
@@ -10,12 +10,15 @@ import { medidas, colunas } from './layout.js';
 // descer a outra. É a decisão central da tela.
 
 const ALTURA_TRAVADO = 56;
+const ALTURA_ALUGUEL = 132;
 const ESPACO = 14;
 
 // Em tela larga o cartão usa duas colunas (turmas à esquerda, melhorias à
 // direita). Em tela estreita tudo empilha e o cartão fica mais alto.
+// Uma linha a mais de melhoria (o Posto Avançado) pede um cartão mais alto:
+// 46 px no empilhado, 38 no largo — o mesmo passo que o bloco já usa.
 function alturaCartao(m) {
-  return m.compacto ? 424 : 236;
+  return m.compacto ? 470 : 274;
 }
 
 export function desenharCampos(ctx, estado, pal, t, L, A, ui = {}) {
@@ -46,7 +49,8 @@ export function desenharCampos(ctx, estado, pal, t, L, A, ui = {}) {
   const travados = estado.campos.filter((c) => estado.nivel < c.nivelMin);
   const alturaC = alturaCartao(m);
   const total = abertos.length * (alturaC + ESPACO)
-    + travados.length * (ALTURA_TRAVADO + ESPACO);
+    + travados.length * (ALTURA_TRAVADO + ESPACO)
+    + ALTURA_ALUGUEL + ESPACO;
 
   const topo = m.compacto ? 66 : 84;
   const area = { x: x + 14, y: y + topo, l: l - 28, a: a - topo - 16 };
@@ -67,6 +71,9 @@ export function desenharCampos(ctx, estado, pal, t, L, A, ui = {}) {
     desenharTravado(ctx, pal, campo, area.x, cursor, area.l);
     cursor += ALTURA_TRAVADO + ESPACO;
   }
+  // A polinização fecha a lista: é a terceira coisa que uma abelha pode fazer,
+  // ao lado de néctar e pólen, e disputa o mesmo corpo.
+  desenharAluguel(ctx, estado, pal, t, area.x, cursor, area.l, m);
 
   definirRecorte(null);
   ctx.restore();
@@ -238,8 +245,8 @@ function desenharCampo(ctx, estado, pal, campo, x, y, l, m) {
   desenharTurma(ctx, pal, campo, 'nectar', x + p, turmaY, l - p * 2, m);
   desenharTurma(ctx, pal, campo, 'polen', x + p, turmaY + 44, l - p * 2, m);
 
-  const livres = campo.slots - campo.alocadas - campo.polenAlocadas;
-  rotulo(ctx, livres === 1 ? '1 slot livre' : `${livres} slots livres`, x + p, turmaY + 94, {
+  const livres = vagasDoCampo(campo) - campo.alocadas - campo.polenAlocadas;
+  rotulo(ctx, livres === 1 ? '1 vaga livre' : `${livres} vagas livres`, x + p, turmaY + 94, {
     tamanho: 10, cor: pal.css('suave'), espaco: 1.8,
   });
   desenharSobre(ctx, pal, campo, x + p, turmaY + 116, l - p * 2);
@@ -268,13 +275,14 @@ function desenharTurma(ctx, pal, campo, tipo, x, y, largura, m) {
   );
   const bx = x + lRotulo + botao + (m.compacto ? 10 : 16);
   const disponivel = Math.min(x + largura, bx + (m.compacto ? largura : 340)) - bx - botao * 4 - 20;
-  const passo = Math.max(18, Math.min(30, disponivel / campo.slots));
+  const vagas = vagasDoCampo(campo);
+  const passo = Math.max(18, Math.min(30, disponivel / vagas));
   const raio = Math.max(7, Math.min(11, passo * 0.37));
 
   botaoRedondo(ctx, pal, bx, y + a / 2, '−', botao);
   zona('campo:alocar', bx - m.toque / 2, y + a / 2 - m.toque / 2, m.toque, m.toque, { campo: campo.id, tipo, delta: -1 });
 
-  for (let i = 0; i < campo.slots; i++) {
+  for (let i = 0; i < vagas; i++) {
     const cx = bx + botao + 12 + i * passo;
     ctx.beginPath();
     ctx.arc(cx, y + a / 2, raio, 0, Math.PI * 2);
@@ -290,7 +298,7 @@ function desenharTurma(ctx, pal, campo, tipo, x, y, largura, m) {
     }
   }
 
-  const mx = bx + botao + 12 + campo.slots * passo;
+  const mx = bx + botao + 12 + vagas * passo;
   botaoRedondo(ctx, pal, mx, y + a / 2, '+', botao);
   zona('campo:alocar', mx - m.toque / 2, y + a / 2 - m.toque / 2, m.toque, m.toque, { campo: campo.id, tipo, delta: +1 });
 }
@@ -401,6 +409,49 @@ function desenharSobre(ctx, pal, campo, x, y, largura) {
 }
 
 // Campo ainda travado: mostra só o nível que falta, como na referência.
+// Polinização paga: manda uma operária para fora por um tempo e ela volta com
+// moedas certas. É a única fonte de dinheiro que não passa pelo mel, e o preço
+// é justamente o corpo que faria mel — por isso mora aqui, junto das turmas.
+function desenharAluguel(ctx, estado, pal, t, x, y, l, m) {
+  const alugadas = estado.abelhas.filter((a) => a.estado === 'alugada');
+  const inverno = t.estacao.id === 'inverno';
+
+  retanguloArredondado(ctx, x, y, l, ALTURA_ALUGUEL, 22);
+  ctx.fillStyle = pal.css('escuro', 0.05);
+  ctx.fill();
+
+  const p = m.compacto ? 14 : 24;
+  ctx.save();
+  ctx.font = `700 ${m.compacto ? 16 : 20}px ${FONTE}`;
+  ctx.fillStyle = pal.css('tinta');
+  ctx.textBaseline = 'middle';
+  ctx.fillText('POLINIZAÇÃO PAGA', x + p, y + 30, l - p * 2);
+  ctx.restore();
+
+  rotulo(ctx, `${ALUGUEL.pagamento} moedas por ${ALUGUEL.duracao}s de trabalho fora`,
+    x + p, y + 54, { tamanho: 10, cor: pal.css('suave'), espaco: 1.4 });
+
+  // Quem está fora e quanto falta pra primeira voltar: sem isso o jogador
+  // manda a abelha e não tem como saber se ela sumiu ou está trabalhando.
+  const proxima = alugadas.reduce((menor, a) => Math.min(menor, a.restaAluguel), Infinity);
+  rotulo(ctx, alugadas.length
+    ? `${alugadas.length} fora · a primeira volta em ${Math.ceil(proxima)}s`
+    : 'ninguém polinizando',
+  x + p, y + 74, { tamanho: 10, cor: pal.css('suave'), espaco: 1.4 });
+
+  const ba = Math.max(m.toque * 0.8, 38);
+  const by = y + ALTURA_ALUGUEL - ba - 12;
+  pilula(ctx, x + p, by, l - p * 2, ba);
+  ctx.fillStyle = inverno ? pal.css('escuro', 0.1) : pal.css('cheia');
+  ctx.fill();
+  rotulo(ctx, inverno ? 'no inverno elas não saem' : 'alugar uma abelha',
+    x + l / 2, by + ba / 2, {
+      tamanho: 11, cor: inverno ? pal.css('suave') : pal.css('tinta'),
+      espaco: 2, alinhar: 'center',
+    });
+  if (!inverno) zona('aluguel:enviar', x + p, by, l - p * 2, ba);
+}
+
 function desenharTravado(ctx, pal, campo, x, y, l) {
   retanguloArredondado(ctx, x, y, l, ALTURA_TRAVADO, 18);
   ctx.fillStyle = pal.css('escuro', 0.72);

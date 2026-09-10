@@ -447,3 +447,123 @@ O ritmo também conta: a cria respira devagar no começo e se mexe cada vez mais
 perto de nascer, com fase própria por célula e por ovo — três crias respirando
 em uníssono pareceriam um relógio, não uma ninhada.
 
+## 9. As catorze ideias
+
+### 9.1 Polinização paga — `ui/campos.js`
+A mecânica existia inteira em `acoes.js` desde sempre e **nunca teve botão**.
+Agora fecha a lista do painel de campos: manda uma operária para fora por 90 s e
+ela volta com 26 moedas certas. É a única renda que não passa pelo mel, e o
+preço é o corpo que faria mel — por isso mora junto das turmas, não na bolsa.
+
+### 9.2 CO₂ e umidade passaram a valer — `sim/clima.js`
+Os dois desviavam bastante (CO₂ passa de 800 ppm em 17-32% de uma partida e
+chega a 2.000; umidade fica fora da faixa em 51% do tempo) e quase não tinham
+consequência. Agora cada medidor tem **um** efeito próprio e nomeável:
+
+| Medidor | O que ele mexe |
+|---|---|
+| temperatura | ninhada: postura e eclosão |
+| CO₂ | ritmo das abelhas dentro do favo (−35% no pior caso) |
+| umidade | com que rapidez a fome chega (−25% no intervalo) |
+
+Com isso os boosts **Ventilar** e **Umidificar**, que eram promessa falsa,
+passam a ter razão de existir.
+
+### 9.3 Histórico dos anos — `ui/historico.js`
+`estado.historico` guardava meta, vendido e se bateu, ano a ano, e a única
+coisa que lia isso eram as continhas de cera. Virou tabela, aberta pelo menu,
+com o ano em curso em cinza no fim.
+
+### 9.4 Posto Avançado — quarta melhoria de campo
+Os campos somavam 15 vagas fixas e a colônia passa de cem abelhas. Cada nível
+de posto abre **uma vaga** no campo, até quatro, com custo subindo 85% por
+nível: crescer a colônia volta a ter para onde ir, sem virar automático.
+
+### 9.5 Enxameação — `sim/enxame.js`
+Passando de 3,2 operárias por célula aberta, a colmeia se prepara para
+enxamear e dá 30 s. Duas saídas de verdade: comprar célula (a pressão passa e
+ninguém sai) ou deixar partir — metade das operárias vai embora e **o enxame é
+vendido** a 22 moedas por abelha. Não é punição, é a colônia grande cobrando
+espaço.
+
+### 9.6 Chuva e seca — `sim/tempo.js`
+A estação era o mesmo número do primeiro ao último segundo. Agora, a cada
+100-180 s, uma janela de 18 s vira o tempo, e cada tipo ataca um lado
+diferente: **chuva** derruba a coleta a 15%; **seca** derruba a rebrota a 8% e
+o néctar acumulado acaba. Aparece na própria faixa da estação, em vermelho.
+
+### 9.7 Mel misturado — `MISTURA` em `economia.js`
+A variedade `florada` existia no catálogo e nenhum campo produzia. Virou o
+produto da mistura: um pote de cada variedade de campo vira um pote de florada,
+que vale 34 contra 29 das três somadas — e concentra valor em menos potes, o
+que importa porque cada venda empurra o preço daquela variedade para baixo. O
+custo real é ter as três ao mesmo tempo, ou seja, guarnecer os três campos.
+
+### 9.8 A rainha envelhece — `sim/rainha.js`
+Era o único elemento da colmeia que não mudava nunca. Agora tem dois anos de
+auge e mais quatro de declínio até 35% de vigor — a postura vai de 8 s para
+23 s. Coroar uma nova custa 6 de mel e **25 s sem postura** enquanto ela
+amadurece. O painel abre tocando na célula da rainha.
+
+### 9.9 Urzal da Neblina — quarto campo
+Os três campos eram a mesma ideia em três intensidades: mais longe = mais rico
+= mais perigoso. O Urzal quebra o padrão — é o mais rápido do jogo (52/min),
+perto (6 s) e sem risco, mas guarda pouco (55) e se recompõe a um quarto da
+velocidade. Rende muito por pouco tempo e obriga a mudar a turma de lugar.
+
+### 9.10 Formigas — `sim/formigas.js`
+A vespa ataca as abelhas; a formiga ataca o **vidro**. Enquanto a fila estiver
+aberta ela leva mel (~2 potes em 25 s), e vedar a entrada custa 12 moedas.
+Ameaças de natureza diferente de propósito: uma custa produção, a outra custa
+dinheiro, e as duas custam atenção.
+
+### 9.11 Dicas para todas as mecânicas
+O sistema de dicas de primeira vez passou a cobrir florada, tempo virado,
+enxame, formigas, encomenda, vespa, inverno e a bênção da primavera. A da
+primavera é desenhada **por cima** do modal — é a única que explica algo que
+está bloqueando a tela.
+
+### 9.12 Som — `render/som.js`
+Web Audio puro, sem nenhum arquivo. Um zumbido de dois osciladores
+desafinados, que engrossa e sobe com a população e cala quando o jogo está
+pausado, mais três toques curtos (colher, vender, aviso). Nasce no primeiro
+toque na tela, por causa da política de autoplay, e se cala junto com a aba.
+Botão de ligar/desligar no menu, preferência guardada no navegador.
+
+### 9.13 Velocidades 6× e 10×
+O ciclo era 1× → 3×; do Ano 6 em diante 3× já parece devagar. Agora é
+1 → 3 → 6 → 10. O passo fixo de 1/30 s aguenta: a 10× são cinco passos por
+quadro a 60 fps.
+
+### 9.14 Desafios travados — `core/conquistas.js`
+Eles eram o motivo de rejogar e estavam disponíveis desde o primeiro minuto.
+Agora abrem com a primeira vitória. As conquistas moram **fora do save da
+partida**: recomeçar apaga a colmeia, não o que o jogador já provou.
+
+### 9.15 O sino de avisos — `sim/avisos.js`
+Com inverno, enxame, formigas, vespa e encomenda podendo acontecer ao mesmo
+tempo, cinco cartões empilhados cobriam o favo — que é justamente o que o
+jogador quer olhar. Eles saíram da tela e foram para trás de um **sino** na
+fileira de ações.
+
+- O sino traz um **contador** com quantos avisos estão valendo.
+- **Pisca** enquanto houver aviso que o jogador ainda não abriu, e só por causa
+  dos urgentes (enxame, formigas, vespa) — a encomenda entra na conta mas não
+  faz piscar, porque perder o prazo dela não custa nada.
+- Abrir marca tudo como visto; um aviso que chega **depois** volta a piscar.
+- Dentro do painel os cartões empilham na ordem de urgência: enxame → formigas
+  → vespa → inverno → encomenda. O da vespa, que morava solto no canto de baixo
+  e caía por cima da encomenda, entrou na mesma coluna.
+
+O aviso efêmero no alto da tela continua aparecendo a cada evento: é o "algo
+aconteceu"; o sino é o "o que ainda está acontecendo".
+
+### 9.16 Cartões minimizáveis — `ui/cartao.js`
+Todo cartão que aparece sozinho tem um **−** no canto. Minimizado, ele vira uma
+pílula com o título, o número que importa e um ponto da cor do cartão — dá pra
+distinguir enxame de formiga sem ler. Um toque devolve o cartão inteiro.
+
+Não é fechar, é encolher: a informação continua valendo enquanto o aviso durar,
+e some sozinha quando ele acabar. O estado de aberto/fechado mora na `ui`, como
+a câmera — não vai pro save nem sobrevive a um recomeço.
+

@@ -6,7 +6,7 @@ import { relogio } from './estacoes.js';
 
 import {
   VARIEDADES, CELULA, BOOSTS, XP, ALUGUEL, UPGRADES, NINHADA,
-  precoDaCelula, xpParaNivel, custoUpgrade,
+  precoDaCelula, xpParaNivel, custoUpgrade, vagasDoCampo, MISTURA,
 } from './economia.js';
 import { vizinhos, chave } from './hex.js';
 import { celulasArray, criarAbelha } from '../core/estado.js';
@@ -14,6 +14,7 @@ import { registrarEntrega } from './encomendas.js';
 import { bonusBencao, descontoBencao } from './bencaos.js';
 import { regraDoDesafio } from './desafios.js';
 import { sortearTalento } from './talentos.js';
+import { RAINHA, podeCoroar, emInterregno } from './rainha.js';
 
 const falha = (motivo) => ({ ok: false, motivo });
 
@@ -68,6 +69,18 @@ export function colher(estado, celula) {
   return sucesso({ variedade, potes });
 }
 
+// Junta um pote de cada variedade de campo num pote de florada.
+export function misturar(estado) {
+  const faltando = MISTURA.entrada.filter((v) => Math.floor(estado.pote[v] ?? 0) < 1);
+  if (faltando.length) {
+    const nomes = faltando.map((v) => VARIEDADES[v].nome).join(', ');
+    return falha(`Falta ${nomes} no vidro.`);
+  }
+  for (const v of MISTURA.entrada) estado.pote[v] -= 1;
+  estado.pote[MISTURA.saida] = (estado.pote[MISTURA.saida] ?? 0) + 1;
+  return sucesso({ variedade: MISTURA.saida });
+}
+
 export function precoDeVenda(estado, variedade, estacao) {
   const base = VARIEDADES[variedade].base;
   const sazonal = 1 + (estacao?.preco ?? 0);
@@ -107,7 +120,7 @@ export function alocar(estado, campoId, tipo, delta) {
   if (alvo < 0) return falha('Já está em zero.');
 
   const outro = tipo === 'polen' ? campo.alocadas : campo.polenAlocadas;
-  if (alvo + outro > campo.slots) return falha('Não há slot livre neste campo.');
+  if (alvo + outro > vagasDoCampo(campo)) return falha('Não há vaga livre neste campo.');
 
   // Mandar todas pro campo é permitido — e para a produção, porque ninguém
   // fica dentro pra transformar néctar em mel. É escolha do jogador.
@@ -130,6 +143,27 @@ export function alocar(estado, campoId, tipo, delta) {
       abelha.t = 0;
     }
   }
+  return sucesso();
+}
+
+// Coroa uma rainha nova. O custo é mel — o mesmo que iria para a meta — e uma
+// janela sem postura enquanto ela amadurece.
+export function coroarRainha(estado) {
+  if (emInterregno(estado)) return falha('A nova rainha ainda está amadurecendo.');
+  if (!podeCoroar(estado)) return falha(`São ${RAINHA.custoMel} de mel para criar uma rainha.`);
+
+  let resta = RAINHA.custoMel;
+  const baratas = Object.keys(VARIEDADES).sort((a, b) => VARIEDADES[a].base - VARIEDADES[b].base);
+  for (const id of baratas) {
+    const tira = Math.min(Math.floor(estado.pote[id] ?? 0), resta);
+    estado.pote[id] -= tira;
+    resta -= tira;
+    if (resta <= 0) break;
+  }
+
+  estado.rainhaDesde = estado.decorrido + RAINHA.interregno;
+  estado.interregno = RAINHA.interregno;
+  estado.proximaPostura = RAINHA.interregno;
   return sucesso();
 }
 

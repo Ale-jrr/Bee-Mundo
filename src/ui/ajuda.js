@@ -25,6 +25,7 @@ export function desenharAjuda(ctx, pal, L, A, id) {
     sustentavel: `+${Math.round(UPGRADES.sustentavel.ganho*100)}% da capacidade inicial de néctar por nível. O campo também regenera mais néctar.`,
     rota: 'Cada nível reduz a viagem em 10% sobre o tempo anterior. Não reduz o risco de morte.',
     ogm: `+${Math.round(UPGRADES.ogm.ganho*100)}% da taxa inicial de coleta de néctar e pólen por nível.`,
+    posto: 'Cada nível abre uma vaga a mais neste campo, para néctar ou para pólen. É o único jeito de passar das vagas iniciais — sem ele a colônia cresce e as abelhas a mais ficam sem trabalho no campo.',
   };
   texto(descricoes[id]);
   cursor+=12;

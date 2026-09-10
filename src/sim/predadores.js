@@ -1,5 +1,6 @@
 import { sortear } from '../core/rng.js';
 import { melhorPara } from './talentos.js';
+import { mostrarDica } from './dicas.js';
 export const VESPAS = { aviso: 20, guardas: 2, intervaloMin: 100, intervaloMax: 160 };
 export function enviarGuarda(estado) {
   if (!estado.ameaca) return { ok: false, motivo: 'Nenhuma vespa por perto.' };
@@ -27,6 +28,7 @@ export function atualizarPredadores(estado, t, dt) {
     // Não iniciar um ataque que atravessaria a chegada do inverno.
     if (estado.decorrido < estado.proximoAtaque || (t.estacao.id === 'outono' && t.restamSegundos <= VESPAS.aviso)) return;
     estado.ameaca = { resta: VESPAS.aviso };
+    mostrarDica(estado, 'vespa');
     return;
   }
   estado.ameaca.resta -= dt;

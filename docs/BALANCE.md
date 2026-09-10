@@ -861,3 +861,49 @@ O robô recolhe as coletoras em **toda** virada de inverno, o que um jogador
 humano vai esquecer às vezes. A margem do Ano 9 (8% a 36%) não tem folga para
 muitos esquecimentos — se na prática ficar difícil demais, o lugar de mexer é
 `META.crescimento`, não a tolerância da ninhada.
+
+## Catorze mecânicas depois, a mesma dificuldade
+
+Esta leva acrescentou tanto oportunidade quanto pressão, e as duas quase se
+anularam — que é o melhor resultado possível de um pacote desse tamanho.
+
+**Ganhou o jogador**: quarto campo (o mais rápido de todos), Posto Avançado
+(vagas além das 15 fixas), mel misturado (+17% no valor e menos pressão de
+preço), polinização paga e a bênção com baralho de quinze cartas.
+
+**Perdeu o jogador**: rainha envelhecendo (postura de 8 s para 23 s), formigas
+levando mel, chuva e seca, CO₂ atrasando o favo, ar seco adiantando a fome e o
+enxame cobrando espaço.
+
+Robô que colhe, vende, mistura, compra célula e melhoria, veda contra formiga,
+recolhe antes do inverno e escolhe bênção:
+
+| Semente | Fim | Colônia | Ano 8 (meta 510) |
+|---|---|---|---|
+| 1 | vitória | 78 | 1.160 |
+| 7 | vitória | 80 | 897 |
+| 42 | vitória | 76 | 1.409 |
+| 99 | vitória | 72 | 870 |
+| 123 | vitória | 74 | 937 |
+| 777 | vitória | 79 | 855 |
+
+**6 de 6 vencem**, e o Ano 9 continua sendo o aperto: pede 907 contra 855-1.409
+produzidos no ano anterior. `META.crescimento` segue em 1,78 — não precisou
+mexer.
+
+A colônia encolheu de 88-119 para 72-80, e isso é a rainha envelhecendo: sem
+trocar de rainha, a colmeia para de crescer no fim da partida. O robô nunca
+trocou (ele vende todo o mel a cada segundo e nunca tem os 6 potes do custo),
+o que é artefato do robô — mas também mostra a tensão real da mecânica: o mel
+da rainha é o mesmo mel da meta.
+
+### Dois defeitos que a medição pegou
+
+**A fome era reescrita, não descontada.** Ao ligar a umidade no limite de fome,
+o teste de inverno do outro agente ficou vermelho: sem mel no vidro a abelha
+continuava faminta, mas se o limite subisse (ar mais úmido) ela sairia da fome
+sem ter comido nada. Agora desconta só o que ela realmente comeu.
+
+**A dica da primavera nunca apareceria.** O cartão de dica se escondia durante
+a escolha da bênção — justamente a tela que ela explica. Passou a ser desenhado
+por cima do modal, e o toque nela é aceito mesmo com a escolha aberta.

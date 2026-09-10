@@ -11,14 +11,23 @@ import { desenharRax } from '../ui/rax.js';
 import { desenharDerrota, desenharVitoria } from '../ui/fim.js';
 import { desenharCampos } from '../ui/campos.js';
 import { desenharMenu } from '../ui/menu.js';
+import { desenharHistorico } from '../ui/historico.js';
+import { desenharRainha } from '../ui/rainha.js';
 import { desenharNinhada } from '../ui/ninhada.js';
 import { desenharInverno } from '../ui/inverno.js';
 import { desenharEncomenda } from '../ui/encomenda.js';
+import { desenharEnxame } from '../ui/enxame.js';
+import { desenharFormigas } from '../ui/formigas.js';
 import { desenharEscolha } from '../ui/bencaos.js';
 import { desenharCamera } from '../ui/camera.js';
 import { desenharDica } from '../ui/dicas.js';
-import { limparZonas } from '../ui/zonas.js';
+import { limparZonas, zona } from '../ui/zonas.js';
 import { medidas, areaDoPote } from '../ui/layout.js';
+
+// O fundo do painel de avisos absorve o toque de fora: tocar no escuro fecha.
+function zonaFundoAvisos(L, A) {
+  zona('avisos:fundo', 0, 0, L, A);
+}
 
 export function desenhar(ctx, estado, L, A, dt, ui = {}) {
   limparZonas();
@@ -41,21 +50,37 @@ export function desenhar(ctx, estado, L, A, dt, ui = {}) {
   desenharAbelhas(ctx, estado, pal, cx, cy, tam, L, A);
   desenharAbelhasNoCampo(ctx, estado, pal, cx, cy, tam, L, A);
   desenharHud(ctx, estado, pal, t, L, A, ui);
-  const rodapeInverno = desenharInverno(ctx, estado, pal, L, A);
-  desenharEncomenda(ctx, estado, pal, L, A, rodapeInverno);
+  // Os cartões de aviso não moram mais na tela: cinco empilhados cobriam o
+  // favo, que é o que o jogador quer ver. Agora ficam atrás do sino e só
+  // aparecem quando ele abre.
+  if (ui.painel === 'avisos') {
+    ctx.fillStyle = 'rgba(30, 22, 10, 0.45)';
+    ctx.fillRect(0, 0, L, A);
+    zonaFundoAvisos(L, A);
+    // Mesma ordem de `sim/avisos.js`: o que tem relógio correndo vem primeiro.
+    let rodape = null;
+    rodape = desenharEnxame(ctx, estado, pal, L, A, rodape, ui) ?? rodape;
+    rodape = desenharFormigas(ctx, estado, pal, L, A, rodape, ui) ?? rodape;
+    rodape = desenharPredador(ctx, estado, pal, L, A, ui, rodape) ?? rodape;
+    rodape = desenharInverno(ctx, estado, pal, L, A, ui, rodape) ?? rodape;
+    desenharEncomenda(ctx, estado, pal, L, A, rodape, ui);
+  }
   desenharNinhada(ctx, estado, pal, L, A, ui);
   desenharCamera(ctx, pal, L, A, ui);
-  desenharDica(ctx, estado, pal, L, A, ui);
   desenharAviso(ctx, estado, pal, L, A);
-  desenharPredador(ctx, estado, pal, L, A);
 
   if (ui.painel === 'rax') desenharRax(ctx, estado, pal, t, L, A);
   if (ui.painel === 'campos') desenharCampos(ctx, estado, pal, t, L, A, ui);
   if (ui.painel === 'menu') desenharMenu(ctx, estado, pal, L, A, ui);
+  if (ui.painel === 'historico') desenharHistorico(ctx, estado, pal, L, A);
+  if (ui.painel === 'rainha') desenharRainha(ctx, estado, pal, L, A);
   if (ui.ajudaMelhorias) desenharAjuda(ctx, pal, L, A, ui.ajudaMelhorias);
   // Depois dos painéis e antes do fim de partida: a escolha da primavera é
   // modal e precisa capturar o toque de qualquer coisa que esteja aberta.
   desenharEscolha(ctx, estado, pal, L, A);
+  // A dica vem por cima de tudo, inclusive da escolha da primavera: ela existe
+  // justamente pra explicar o que está na tela naquele momento.
+  desenharDica(ctx, estado, pal, L, A, ui);
   if (estado.derrota) desenharDerrota(ctx, estado, pal, L, A);
   if (estado.vitoria) desenharVitoria(ctx, estado, pal, L, A);
 

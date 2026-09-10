@@ -2,6 +2,9 @@ import { retanguloArredondado, pilula, rotulo, numero, barra } from '../render/d
 import { zona } from './zonas.js';
 import { medidas, areaDoClima } from './layout.js';
 import { previsaoInverno } from '../sim/inverno.js';
+import {
+  estaMinimizado, botaoMinimizar, pilulaMinimizada, recuoDoBotao,
+} from './cartao.js';
 
 const ALERTA = '#b8484a';
 
@@ -11,7 +14,7 @@ const ALERTA = '#b8484a';
 // agir. Fora dessa janela seria mais um cartão ocupando a tela.
 // Devolve a coordenada do rodapé do cartão (ou null), pra quem vier depois
 // empilhar embaixo em vez de adivinhar a altura.
-export function desenharInverno(ctx, estado, pal, L, A) {
+export function desenharInverno(ctx, estado, pal, L, A, ui = {}, topo = null) {
   const p = previsaoInverno(estado);
   if (!p) return null;
 
@@ -19,6 +22,14 @@ export function desenharInverno(ctx, estado, pal, L, A) {
   const clima = areaDoClima(m);
   const { esc } = m;
   const podeRecolher = !p.inverno && p.fora > 0;
+
+  if (estaMinimizado(ui, 'inverno')) {
+    return pilulaMinimizada(ctx, pal, m, clima.x,
+      (topo ?? clima.y + clima.a) + Math.max(8, Math.round(10 * esc)),
+      clima.l, 'inverno',
+      `${p.inverno ? 'inverno' : 'preparar'} ${relogioCurto(p.restam)}`,
+      p.falta > 0 || !p.aTempo ? ALERTA : pal.css('cheia'));
+  }
 
   // As alturas vêm somadas, não de um total mágico. Com total fixo, o piso de
   // escala (0,62) encolhia os textos mas não o botão, que tem alvo mínimo de
@@ -31,7 +42,7 @@ export function desenharInverno(ctx, estado, pal, L, A) {
   const gap = Math.max(8, Math.round(10 * esc));
 
   const x = clima.x;
-  const y = clima.y + clima.a + gap;
+  const y = (topo ?? clima.y + clima.a) + gap;
   const l = clima.l;
   const a = pad + hTitulo + hTexto + hBarra + gap + hTexto
     + (podeRecolher ? gap + hBotao : 0) + pad;
@@ -49,13 +60,14 @@ export function desenharInverno(ctx, estado, pal, L, A) {
   ctx.fill();
   ctx.restore();
   zona('inverno:cartao', x, y, l, a);
+  botaoMinimizar(ctx, pal, m, x, y, l, 'inverno');
 
   let cursor = y + pad;
 
   rotulo(ctx, p.inverno ? 'inverno' : 'preparar o inverno', x + pad, cursor + hTitulo / 2, {
     tamanho: m.rotulo, cor: pal.css('suave'), espaco: 2.4,
   });
-  numero(ctx, relogioCurto(p.restam), x + l - pad, cursor + hTitulo / 2, {
+  numero(ctx, relogioCurto(p.restam), x + l - pad - recuoDoBotao(m), cursor + hTitulo / 2, {
     tamanho: Math.max(13, 17 * esc), cor: pal.css('tinta'), alinhar: 'right',
   });
   cursor += hTitulo;

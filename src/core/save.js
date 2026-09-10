@@ -28,7 +28,7 @@ function reidratarCampos(salvos = []) {
       florada: salvo?.florada ?? 0,
       alocadas: salvo?.alocadas ?? base.alocadasInicial,
       polenAlocadas: salvo?.polenAlocadas ?? base.polenInicial,
-      upgrades: { sustentavel: 0, rota: 0, ogm: 0, ...(salvo?.upgrades ?? {}) },
+      upgrades: { sustentavel: 0, rota: 0, ogm: 0, posto: 0, ...(salvo?.upgrades ?? {}) },
     };
   });
 }
@@ -62,6 +62,13 @@ export function serializar(estado) {
     proximaFlorada: estado.proximaFlorada ?? null,
     encomenda: estado.encomenda ?? null,
     proximaEncomenda: estado.proximaEncomenda ?? null,
+    formigas: estado.formigas ?? null,
+    proximaFormiga: estado.proximaFormiga ?? null,
+    rainhaDesde: estado.rainhaDesde ?? 0,
+    interregno: estado.interregno ?? 0,
+    tempo: estado.tempo ?? null,
+    proximoTempo: estado.proximoTempo ?? null,
+    enxame: estado.enxame ?? null,
     dica: estado.dica ?? null,
     dicasVistas: estado.dicasVistas ?? {},
     bencaos: estado.bencaos ?? {},
@@ -83,7 +90,9 @@ export function desserializar(dados) {
     'rngEstado', 'decorrido', 'velocidade', 'ano', 'vendidoNoAno', 'moedas',
     'nivel', 'xp', 'celulasCompradas', 'proximaPostura', 'proximoIdAbelha',
     'derrota', 'vitoria', 'turbo', 'consumoDeMel', 'proximaFlorada',
-    'encomenda', 'proximaEncomenda', 'escolha', 'dica', 'ameaca', 'proximoAtaque',
+    'encomenda', 'proximaEncomenda', 'escolha', 'dica', 'enxame',
+    'tempo', 'proximoTempo', 'rainhaDesde', 'interregno',
+    'formigas', 'proximaFormiga', 'ameaca', 'proximoAtaque',
   ]) {
     if (dados[chave] !== undefined) estado[chave] = dados[chave];
   }

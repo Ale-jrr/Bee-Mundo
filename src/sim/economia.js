@@ -6,7 +6,19 @@ export const VARIEDADES = {
   silvestre: { nome: 'Flor Silvestre', cor: '#b8484a', base: 6,  volatilidade: 0.06 },
   acacia:    { nome: 'Acácia',         cor: '#f2e6a8', base: 14, volatilidade: 0.14 },
   trevo:     { nome: 'Trevo',          cor: '#e07b2c', base: 9,  volatilidade: 0.09 },
-  florada:   { nome: 'Florada',        cor: '#f0b429', base: 11, volatilidade: 0.11 },
+  // Mel de florada não vem de campo nenhum: é o que sai de misturar as três
+  // variedades no vidro. Por isso vale mais que qualquer uma sozinha.
+  florada:   { nome: 'Florada',        cor: '#f0b429', base: 34, volatilidade: 0.11 },
+};
+
+// Mistura: um pote de cada variedade de campo vira um pote de florada. Vale a
+// pena pelo preço (34 contra 6+9+14 = 29) e por concentrar valor em menos
+// potes, já que cada venda empurra o preço daquela variedade pra baixo. O
+// custo real é ter as três ao mesmo tempo — ou seja, guarnecer os três campos
+// em vez de só o melhor deles, que é a decisão que faltava.
+export const MISTURA = {
+  entrada: ['silvestre', 'trevo', 'acacia'],
+  saida: 'florada',
 };
 
 export const CLIMA = {
@@ -220,6 +232,18 @@ export const CAMPOS = [
     alocadasInicial: 0, polenInicial: 0,
     sobre: { bom: 'Quase o dobro de néctar, e mel mais caro.', ruim: 'Longe — e nem toda abelha volta.' },
   },
+  // Quebra o padrão dos outros três, que são a mesma ideia em três
+  // intensidades (mais longe = mais rico = mais perigoso). O Urzal é perto,
+  // seguro e o mais rápido do jogo — e esgota. A reserva é pequena e se
+  // recompõe a um quarto da velocidade, então ele rende muito por pouco tempo
+  // e obriga a mudar a turma de lugar em vez de escalar e esquecer.
+  {
+    id: 'urzal', nome: 'Urzal da Neblina', variedade: 'acacia',
+    taxa: 52.0, viagem: 6, nectarMax: 55, risco: 0, slots: 3, nivelMin: 5,
+    rebrota: 0.25,
+    alocadasInicial: 0, polenInicial: 0,
+    sobre: { bom: 'Pertinho, seguro e o mais rápido de todos.', ruim: 'Seca depressa e demora a voltar.' },
+  },
   {
     id: 'acacias', nome: 'Vale das Acácias', variedade: 'acacia',
     taxa: 45.0, viagem: 13, nectarMax: 120, risco: 0.16, slots: 6, nivelMin: 7,
@@ -238,6 +262,11 @@ export const UPGRADES = {
   sustentavel: { nome: 'Agricultura Sustentável', max: 8, custoBase: 150, crescimento: 1.55, ganho: +0.15 },
   rota:        { nome: 'Rota de Voo',             max: 8, custoBase: 100, crescimento: 1.50, ganho: -0.10 },
   ogm:         { nome: 'OGM',                     max: 8, custoBase: 100, crescimento: 1.65, ganho: +0.15 },
+  // Vagas. Os três campos somavam 15 lugares fixos, e a colônia passa de cem
+  // abelhas: tudo além de ~18 só servia pra aquecer o favo. Cada posto abre
+  // uma vaga, e é caro de propósito — crescer a colônia tem que continuar
+  // sendo decisão, não consequência automática de ter dinheiro.
+  posto:       { nome: 'Posto Avançado',          max: 4, custoBase: 260, crescimento: 1.85, ganho: +1 },
 };
 
 export function custoUpgrade(id, nivel) {
@@ -254,7 +283,14 @@ export function statsDoCampo(campo) {
     viagem: campo.viagem * Math.pow(1 + UPGRADES.rota.ganho, u.rota),
     nectarMax: campo.nectarMax * (1 + UPGRADES.sustentavel.ganho * u.sustentavel),
     risco: campo.risco,
+    vagas: vagasDoCampo(campo),
   };
+}
+
+// Vagas efetivas do campo. Fica separado porque a interface e a alocação
+// precisam dela sem calcular o resto.
+export function vagasDoCampo(campo) {
+  return campo.slots + UPGRADES.posto.ganho * (campo.upgrades?.posto ?? 0);
 }
 
 // O nível precisa destravar o Treval (3) por volta do Ano 2 e o Vale (7) por

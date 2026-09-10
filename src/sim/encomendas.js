@@ -2,6 +2,7 @@ import { sortear } from '../core/rng.js';
 import { VARIEDADES } from './economia.js';
 import { SEGUNDOS_POR_ESTACAO, relogio } from './estacoes.js';
 import { bonusBencao } from './bencaos.js';
+import { mostrarDica } from './dicas.js';
 
 // Encomenda: um pedido por uma variedade específica, com prazo. A meta anual
 // só olha o total vendido, então o jogador acaba tratando os quatro méis como
@@ -52,6 +53,7 @@ export function atualizarEncomendas(estado, t, dt) {
     texto: `Encomenda: ${estado.encomenda.quantidade} de ${VARIEDADES[estado.encomenda.variedade].nome}`,
     expira: estado.decorrido + 5,
   };
+  mostrarDica(estado, 'encomenda');
 }
 
 function agendar(estado) {

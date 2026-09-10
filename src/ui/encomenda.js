@@ -3,6 +3,9 @@ import { zona } from './zonas.js';
 import { medidas, areaDoClima } from './layout.js';
 import { encomendaAtiva, estacaoDoPrazo } from '../sim/encomendas.js';
 import { VARIEDADES } from '../sim/economia.js';
+import {
+  estaMinimizado, botaoMinimizar, pilulaMinimizada, recuoDoBotao,
+} from './cartao.js';
 
 const URGENTE = '#b8484a';
 
@@ -10,13 +13,20 @@ const URGENTE = '#b8484a';
 // empilhado abaixo deles: são os três avisos que o jogador precisa ver sem
 // abrir nada, e a coluna da esquerda é a única que nunca disputa espaço com o
 // favo.
-export function desenharEncomenda(ctx, estado, pal, L, A, topo = null) {
+export function desenharEncomenda(ctx, estado, pal, L, A, topo = null, ui = {}) {
   const pedido = encomendaAtiva(estado);
   if (!pedido) return null;
 
   const m = medidas(L, A);
   const clima = areaDoClima(m);
   const { esc } = m;
+
+  if (estaMinimizado(ui, 'encomenda')) {
+    return pilulaMinimizada(ctx, pal, m, clima.x,
+      (topo ?? clima.y + clima.a) + Math.max(8, Math.round(10 * esc)), clima.l, 'encomenda',
+      `encomenda ${Math.floor(pedido.entregue)}/${pedido.quantidade}`,
+      VARIEDADES[pedido.variedade].cor);
+  }
 
   const pad = Math.max(12, Math.round(18 * esc));
   const hTitulo = Math.max(18, Math.round(24 * esc));
@@ -42,6 +52,7 @@ export function desenharEncomenda(ctx, estado, pal, L, A, topo = null) {
   ctx.fill();
   ctx.restore();
   zona('encomenda:cartao', x, y, l, a);
+  botaoMinimizar(ctx, pal, m, x, y, l, 'encomenda');
 
   let cursor = y + pad;
   rotulo(ctx, 'encomenda', x + pad, cursor + hTitulo / 2, {
@@ -50,7 +61,7 @@ export function desenharEncomenda(ctx, estado, pal, L, A, topo = null) {
   // O prazo aparece como estação enquanto está longe e vira relógio no fim: o
   // jogador planeja por estação, mas corre por segundo.
   rotulo(ctx, urgente ? `${Math.ceil(restam)}s` : `até o ${estacaoDoPrazo(pedido).nome.toLowerCase()}`,
-    x + l - pad, cursor + hTitulo / 2, {
+    x + l - pad - recuoDoBotao(m), cursor + hTitulo / 2, {
       tamanho: Math.max(9, 11 * esc), cor: urgente ? URGENTE : pal.css('tinta'),
       espaco: 1.6, alinhar: 'right',
     });

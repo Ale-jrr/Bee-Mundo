@@ -87,6 +87,13 @@ export function novoJogo(semente = Date.now() & 0xffffffff, desafio = DESAFIO_PA
     proximaFlorada: null,      // armado no primeiro passo da simulação
     encomenda: null,           // { variedade, quantidade, entregue, vence, recompensa }
     proximaEncomenda: null,
+    formigas: null,            // { resta, roubado } durante um ataque
+    proximaFormiga: null,
+    rainhaDesde: 0,            // decorrido em que a rainha atual assumiu
+    interregno: 0,             // segundos sem postura durante a troca
+    tempo: null,               // { tipo, resta } — chuva ou seca em curso
+    proximoTempo: null,
+    enxame: null,              // { resta } enquanto a colmeia ameaça enxamear
     dica: null,                // id da dica de primeira vez em exibição
     dicasVistas: {},           // id -> quantas vezes já apareceu
     bencaos: {},               // id da bênção -> nível escolhido
@@ -98,7 +105,7 @@ export function novoJogo(semente = Date.now() & 0xffffffff, desafio = DESAFIO_PA
       florada: 0,              // segundos restantes de florada neste campo
       alocadas: c.alocadasInicial,
       polenAlocadas: c.polenInicial,
-      upgrades: { sustentavel: 0, rota: 0, ogm: 0 },
+      upgrades: { sustentavel: 0, rota: 0, ogm: 0, posto: 0 },
     })),
   };
 }
