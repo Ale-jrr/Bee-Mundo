@@ -293,7 +293,7 @@ const ACOES = [
   { id: 'avisos', glifo: null },     // sino, desenhado à mão
   { id: 'boosts', glifo: '⚡' },
   { id: 'mercado', glifo: '↗' },
-  { id: 'campos', glifo: '✿' },
+  { id: 'campos', glifo: null },     // flor, desenhada à mão
 ];
 
 // Sino desenhado em caminho, e não como emoji: emoji muda de forma em cada
@@ -311,6 +311,31 @@ function sino(ctx, x, y, r, cor) {
   ctx.fill();
   ctx.beginPath();
   ctx.arc(x, y + r * 0.78, r * 0.22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+// Flor desenhada em caminho, pelo mesmo motivo do sino: o caractere ✿ muda
+// de forma em cada sistema, e no Windows sai como uma roseta de seis pontas
+// iguais e coladas — que lê como engrenagem, não como flor.
+//
+// O que faz ler como flor são três coisas: cinco pétalas em vez de seis (número
+// par e regular é o que dá cara de engrenagem), pétalas ovais apontando pra
+// fora em vez de bolinhas, e folga visível entre elas.
+function flor(ctx, x, y, r, cor, corMiolo) {
+  ctx.save();
+  ctx.fillStyle = cor;
+  for (let i = 0; i < 5; i++) {
+    // Começa em -90°: uma pétala apontada pra cima, que é como se desenha flor.
+    const ang = -Math.PI / 2 + (i * Math.PI * 2) / 5;
+    ctx.beginPath();
+    ctx.ellipse(x + Math.cos(ang) * r * 0.54, y + Math.sin(ang) * r * 0.54,
+      r * 0.25, r * 0.46, ang + Math.PI / 2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.3, 0, Math.PI * 2);
+  ctx.fillStyle = corMiolo;
   ctx.fill();
   ctx.restore();
 }
@@ -366,6 +391,9 @@ function desenharAcoes(ctx, estado, pal, m, ui = {}) {
     ctx.restore();
 
     if (item.id === 'avisos') desenharSino(ctx, estado, pal, x, y, a, ui);
+    if (item.id === 'campos') {
+      flor(ctx, x + a / 2, y + a / 2, a * 0.26, pal.css('escuro'), pal.css('cheia'));
+    }
 
     // Selo pulsante no botão de campos enquanto há florada: a oportunidade
     // dura 25 s e mora dentro de um painel fechado — sem chamado aqui fora,

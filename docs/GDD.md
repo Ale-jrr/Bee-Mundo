@@ -341,7 +341,8 @@ A cada 90-150 s um campo aberto floresce por 25 s: taxa ×1,6, reserva ×1,5 e
 enche na hora. Nunca duas ao mesmo tempo, nunca no inverno, e nunca uma que a
 virada do inverno cortaria pela metade. `statsComFlorada` embrulha
 `statsDoCampo` — a florada é regra com tempo, e `economia.js` só guarda
-constantes. O painel de campos acende o cartão e o botão ✿ ganha selo pulsante.
+constantes. O painel de campos acende o cartão e o botão de flor ganha selo
+pulsante.
 
 ### 8.4 Encomendas — `sim/encomendas.js`, `ui/encomenda.js`
 Um pedido por vez: N potes de uma variedade, com prazo no fim de uma estação
