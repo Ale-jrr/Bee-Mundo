@@ -193,6 +193,14 @@ function aoTocar(x, y) {
 
 function tratarInicio(z) {
   switch (z.id) {
+    // A tela de fim registra uma zona de tela inteira. Ela fica por baixo da
+    // tela de início, mas se algum dia vencer o hit-test tem que fazer a coisa
+    // certa, não sumir com o toque.
+    case 'derrota:reiniciar':
+    case 'vitoria:reiniciar':
+      recomecar();
+      ui.tela = 'jogo';
+      break;
     case 'inicio:continuar':
       ui.tela = 'jogo';
       break;

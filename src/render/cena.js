@@ -79,14 +79,17 @@ export function desenhar(ctx, estado, L, A, dt, ui = {}) {
   // Depois dos painéis e antes do fim de partida: a escolha da primavera é
   // modal e precisa capturar o toque de qualquer coisa que esteja aberta.
   desenharEscolha(ctx, estado, pal, L, A);
-  // A tela de início vem por cima de tudo: enquanto ela estiver aberta o jogo
-  // não anda, e nada atrás dela deve responder ao toque.
-  if (ui.tela === 'inicio') desenharInicio(ctx, estado, pal, L, A, ui);
+
   // A dica vem por cima de tudo, inclusive da escolha da primavera: ela existe
   // justamente pra explicar o que está na tela naquele momento.
   desenharDica(ctx, estado, pal, L, A, ui);
   if (estado.derrota) desenharDerrota(ctx, estado, pal, L, A);
   if (estado.vitoria) desenharVitoria(ctx, estado, pal, L, A);
+  // A tela de início vem **por último**, por cima até do fim de partida:
+  // desenhada antes, ela ficava escondida atrás da tela de derrota, que ainda
+  // por cima registra uma zona de tela inteira — o jogador via "não
+  // sobreviveu", tocava, e nada acontecia.
+  if (ui.tela === 'inicio') desenharInicio(ctx, estado, pal, L, A, ui);
 
   return { t, pal, cx, cy };
 }

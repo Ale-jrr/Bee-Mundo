@@ -593,3 +593,25 @@ encerrada continua na tela até o jogador decidir. Como `Continuar` some quando
 há derrota ou vitória, a única saída é começar de novo — mas por escolha, não
 por um toque distraído.
 
+### 9.18 Correção: perder e não conseguir recomeçar
+A tela de início entrou desenhada **antes** da tela de fim de partida. Como a
+tela de derrota registra uma zona de tela inteira (`derrota:reiniciar`) e a
+última zona registrada ganha o hit-test, o que acontecia era:
+
+1. o jogador perdia e via "a colmeia não sobreviveu ao ano N";
+2. tocava — o toque ia para a tela de início, que estava **atrás** e invisível;
+3. o tratador da tela de início não conhecia `derrota:reiniciar` e engolia o
+   toque em `default`.
+
+Resultado: a partida travava na tela de derrota. Duas correções, e as duas
+valem por si:
+
+- a tela de início passou a ser desenhada **por último**, acima até do fim de
+  partida — ela é a única tela que precisa estar sempre por cima;
+- o tratador da tela de início passou a entender `derrota:reiniciar` e
+  `vitoria:reiniciar` como "começar de novo", para o caso de a zona vencer o
+  hit-test por algum outro caminho.
+
+Há teste travando a ordem de desenho: ele lê `render/cena.js` e verifica que
+`desenharInicio` aparece depois de `desenharDerrota` e `desenharVitoria`.
+

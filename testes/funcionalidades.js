@@ -53,7 +53,7 @@ function em(segundos, semente = 42) {
 const OUTONO = SEGUNDOS_POR_ESTACAO * 2;
 const INVERNO = SEGUNDOS_POR_ESTACAO * 3;
 
-export function rodar() {
+export async function rodar() {
   let total = 0;
   const falhas = [];
   // Marcador auxiliar: usado dentro de laços, onde uma asserção por volta
@@ -928,6 +928,28 @@ export function rodar() {
     `${juntos.length} pares em ${inicios.length} eventos`);
   ok('e os eventos continuam acontecendo', inicios.length >= 4,
     `${inicios.length} em 900 s`);
+
+  // ------------------------------- 25. ordem de desenho do fim de partida
+
+  // A tela de derrota registra uma zona de tela inteira. Se ela for desenhada
+  // **depois** da tela de início, essa zona ganha o hit-test e engole o toque:
+  // o jogador vê "não sobreviveu", toca, e nada acontece — foi exatamente o
+  // que aconteceu quando a tela de início entrou.
+  const fonteCena = await (await fetch('/src/render/cena.js')).text();
+  const posInicio = fonteCena.indexOf('desenharInicio(ctx');
+  const posDerrota = fonteCena.indexOf('desenharDerrota(ctx');
+  const posVitoria = fonteCena.indexOf('desenharVitoria(ctx');
+  ok('a tela de início é desenhada depois da derrota',
+    posInicio > posDerrota && posDerrota > 0, `${posInicio} vs ${posDerrota}`);
+  ok('e depois da vitória', posInicio > posVitoria && posVitoria > 0);
+
+  // E o toque na zona da derrota, se chegar até o tratador da tela de início,
+  // tem que recomeçar em vez de sumir.
+  const fonteMain = await (await fetch('/src/main.js')).text();
+  const tratador = fonteMain.slice(fonteMain.indexOf('function tratarInicio'),
+    fonteMain.indexOf('function tratarZona'));
+  ok('a tela de início trata a zona da derrota',
+    tratador.includes("'derrota:reiniciar'") && tratador.includes("'vitoria:reiniciar'"));
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }
