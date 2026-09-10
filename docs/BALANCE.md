@@ -949,3 +949,63 @@ perder no Ano 9. Em vez de mexer na meta, a florada ficou um pouco mais
 frequente que os eventos ruins — mesmo orçamento de eventos, mistura diferente.
 Voltou a 6 de 6, com o Ano 8 entre 886 e 1.708 contra a meta 907 do Ano 9.
 
+## O jogador-robô — `testes/robo.js`
+
+Medir balanço com sonda escrita na hora deu errado **quatro vezes**, cada vez
+de um jeito diferente:
+
+1. colheu e nunca vendeu → derrota no Ano 1 congelou `passo`, e o resultado foi
+   lido como "seis minutos sem mel";
+2. mexeu em `ano` sem mexer em `decorrido` → o jogo viu ano novo, conferiu a
+   meta, decretou derrota, e tudo veio zerado;
+3. ignorou `estado.escolha` → a bênção da primavera pausou o jogo e o relógio
+   parou no Ano 2 para sempre;
+4. alimentou a ninhada antes de vender → gastou o mel todo, as abelhas ficaram
+   com fome e a colônia encolheu.
+
+A lição comum: a sonda descartável mente de um jeito novo a cada vez, e não dá
+para saber qual número é do jogo e qual é da sonda. Por isso o robô é
+versionado e **tem testes próprios**, que provam que ele não repete nenhum dos
+quatro erros — inclusive dois que leem o próprio código-fonte para garantir
+que ele nunca escreve em `estado.ano` nem em `estado.decorrido`.
+
+Ele não joga bem: joga de forma **competente e previsível**, que é o que uma
+régua precisa ser. Colhe, vende o excedente acima de uma reserva, mistura
+florada, escala campos por rentabilidade deixando gente em casa pra curar,
+alimenta a ninhada com folga, encomenda guardiã, compra célula e melhoria,
+veda formiga, recolhe antes do inverno e troca a rainha no inverno (quando o
+interregno sai de graça, porque a ninhada já está congelada).
+
+### Primeira medição confiável (v0.8.0, 6 sementes)
+
+**2 de 6 vitórias. Todas as seis chegam ao Ano 9.**
+
+Folga sobre a meta (vendido ÷ meta), média das seis:
+
+| ano | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| folga | 5,8× | 7,2× | 15,4× | 14,6× | 9,2× | 5,2× | 2,9× | 1,7× | **0,89×** |
+
+O formato é claro e não é o desejado:
+
+- **os Anos 1 a 6 não são jogo.** Vender 15 vezes a meta no Ano 3 quer dizer
+  que nenhuma decisão daquele ano importa;
+- **a partida inteira é decidida no Ano 9**, num único muro. Ninguém perde
+  antes, e quase todo mundo perde ali;
+- a colônia chega a 92-97 operárias e 43-46 células, bem acima das 25-56 que o
+  resto do design supunha.
+
+### Quanta folga a régua tem
+
+`fracaoNoCampo` (quantas operárias vão a campo) move o resultado do Ano 9 em
+cerca de ±0,3 — que é do mesmo tamanho da distância entre vencer e perder:
+
+| fração | semente 42 | semente 7 |
+| --- | --- | --- |
+| 0,50 | 0,63 (perde) | — |
+| 0,62 | vence | 0,82 (perde) |
+| 0,75 | 1,16 (vence) | 0,78 (perde) |
+
+Ou seja: **"2 de 6" deve ser lido como "o Ano 9 é cara ou coroa"**, não como
+uma taxa exata. Um jogador humano bom espreme talvez 10-30% a mais que o robô,
+e essa margem é exatamente a que decide a partida.
