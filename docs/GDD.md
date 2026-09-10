@@ -757,3 +757,79 @@ Como os botões agora têm nome, o tutorial (§ 9.19) parou de descrever o desen
 e passou a citar o rótulo: "toque no botão CAMPOS" em vez de "toque no botão de
 flor". Há teste ligando as duas pontas — se o nome mudar no HUD sem mudar no
 tutorial, o passo passaria a apontar para um botão que não existe.
+
+### 9.22 Virar o ano dá células
+
+Comprar era o único jeito de o favo crescer, então a colmeia só crescia na
+velocidade da carteira. Passar de ano agora dá **2 ou 3 células de graça**
+(`PRESENTE_DO_ANO`), sorteadas entre as travadas já à vista — o favo cresce
+pela borda, do mesmo jeito que cresce comprando.
+
+O presente **não conta como compra**: `celulasCompradas` não sobe, então
+ganhar célula não encarece a próxima que o jogador comprar. Quem perde no fim
+do ano não ganha nada — a derrota sai antes.
+
+`liberarCelula` saiu de dentro de `comprarCelula`: é o mesmo caminho de abrir
+célula e revelar vizinhas, sem o preço.
+
+**Fila de dicas**, que esta mudança exigiu: na virada do ano chegam até três
+explicações no mesmo quadro — inverno saindo, presente de células e bênção da
+primavera. Sem fila a última apagava as anteriores **e ainda marcava todas
+como vistas**, então o jogador perdia explicação que nunca mais voltaria.
+
+### 9.23 Vespas invadem — `sim/predadores.js`, `render/vespas.js`
+
+O ataque antigo era abstrato: um relógio corria, o jogador montava uma guarda
+de duas abelhas, e no fim morria **uma coletora que estava no campo**. Estranho
+por dois motivos — a vespa nunca aparecia, e quem morria era quem estava longe
+de casa.
+
+Agora a vespa invade, em três fases:
+
+| fase | dura | o que acontece |
+| --- | --- | --- |
+| aviso | 22 s | as vespas foram avistadas; dá tempo de recolher gente |
+| voo | 9 s | elas atravessam a tela até a entrada do favo |
+| luta | 5 s | o que acontece na porta; o estrago é aplicado no fim |
+
+**Quem defende é quem está dentro.** As guardiãs (pendor `defesa`, § 8.7) que
+estão em casa param na porta **sozinhas**, uma para cada vespa — o jogador não
+manda ninguém. Enquanto há ameaça, a guardiã também deixa de ser escalada para
+o campo: mandá-la agora seria esvaziar a porta na hora do ataque.
+
+O botão de reforço continua, mas virou o que sempre deveria ter sido: pôr
+**mais uma** na porta quando as guardiãs não bastam.
+
+Vespa que passa ataca **quem está dentro**. Se não houver ninguém em casa, ela
+saqueia o vidro e leva um pote. Isso vira a decisão de cabeça pra baixo, de
+propósito: **colmeia vazia é colmeia indefesa**. Deixar todo mundo no campo
+rende néctar e deixa a porta aberta.
+
+Quantas vespas vêm cresce com o ano (`minimo` 1, teto 3, `porAno` 0.34): uma
+colmeia de vinte abelhas não pode temer uma vespa só pelo resto do jogo.
+
+`render/vespas.js` desenha a invasão: corpo mais escuro e magro que o da
+abelha, cintura marcada, abdome pontudo listrado. A leitura tem que ser
+imediata — não pode ser confundida com abelha da própria colmeia. Quem entrou
+circula sobre o favo com um halo vermelho; quem foi barrada treme na porta.
+
+### 9.24 Botão de abelhas — `ui/abelhas.js`
+
+A colônia já era um elenco por dentro, mas o jogador só via um número na barra
+de cima. O quinto botão abre um painel com duas listas:
+
+- **o que sabem fazer** — batedora, ceroma, guardiã e sem pendor, cada uma com
+  a cor com que aparece no favo, quantas há e o que o pendor faz;
+- **onde estão agora** — na colmeia, no campo, na guarda, alugadas.
+
+`censo(estado)` faz a conta em `sim/talentos.js`. Alugada e guarda têm lugar
+próprio: o campo `estado` da abelha continua `'colmeia'` nos dois casos, então
+contar por ele mentiria.
+
+Com o painel de abelhas, a defesa deixou de ser adivinhação: é ali que se vê
+quantas guardiãs a colmeia tem antes de a vespa chegar.
+
+A fileira de ação passou a se dimensionar (`BOTOES_DE_ACAO` em `layout.js`):
+cinco botões no tamanho antigo encostavam no vidro de mel em tela estreita.
+Agora dividem a faixa que sobra ao lado dele, com piso no alvo mínimo de toque
+(44 px). Há teste conferindo os dois limites em 320, 375, 414, 768 e 1280 px.

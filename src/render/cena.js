@@ -4,6 +4,7 @@ import { relogio } from '../sim/estacoes.js';
 import { paletaAtual } from './paleta.js';
 import { desenharFavo, desenharAbelha, centroDaCelula, geometriaFavo } from './favo.js';
 import { desenharParticulas } from './particulas.js';
+import { desenharVespas } from './vespas.js';
 import { desenharOrnamentos } from './ornamentos.js';
 import { retanguloArredondado, rotulo } from './desenho.js';
 import { desenharHud } from '../ui/hud.js';
@@ -54,6 +55,9 @@ export function desenhar(ctx, estado, L, A, dt, ui = {}) {
   desenharFavo(ctx, estado, pal, cx, cy, tam);
   desenharAbelhas(ctx, estado, pal, cx, cy, tam, L, A);
   desenharAbelhasNoCampo(ctx, estado, pal, cx, cy, tam, L, A);
+  // Depois das abelhas: a vespa passa por cima delas, que é a leitura certa
+  // de quem está invadindo.
+  desenharVespas(ctx, estado, pal, cx, cy, tam, L, A);
   desenharHud(ctx, estado, pal, t, L, A, ui);
   // Os cartões de aviso não moram mais na tela: cinco empilhados cobriam o
   // favo, que é o que o jogador quer ver. Agora ficam atrás do sino e só

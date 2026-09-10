@@ -38,11 +38,12 @@ export const DICAS = {
     titulo: 'vespa',
     vezes: 2,
     linhas: [
-      'Uma vespa está rondando e vai levar uma coletora',
-      'se ninguém defender a entrada.',
-      'Guardiãs saem da colmeia, não do campo: recolha',
-      'uma turma com o − para ter abelha livre.',
-      'Duas guardiãs espantam a vespa.',
+      'Vespas estão vindo e vão invadir a colmeia.',
+      'Quem defende é quem está dentro: as guardiãs em',
+      'casa param na porta sozinhas, uma para cada vespa.',
+      'Se faltar guardiã, recolha uma turma dos campos —',
+      'colmeia vazia é colmeia aberta. Quem passa mata',
+      'uma abelha de dentro ou leva mel do vidro.',
     ],
   },
   inverno: {

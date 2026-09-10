@@ -304,7 +304,12 @@ function ehAMelhorParaOCampo(estado, abelha) {
   const emCasa = estado.abelhas.filter(
     (a) => a.papel === 'operaria' && a.estado === 'colmeia' && !a.guarda,
   );
-  return melhorPara(emCasa, 'coleta') === abelha;
+  // Com vespa a caminho, a guardiã fica. Ela é a defesa da porta, e mandar
+  // justo ela ao campo agora seria esvaziar a entrada na hora do ataque.
+  const candidatas = estado.ameaca
+    ? emCasa.filter((a) => a.talento !== 'defesa')
+    : emCasa;
+  return melhorPara(candidatas, 'coleta') === abelha;
 }
 
 function contarNoCampo(estado, id) {
