@@ -1009,3 +1009,32 @@ cerca de ±0,3 — que é do mesmo tamanho da distância entre vencer e perder:
 Ou seja: **"2 de 6" deve ser lido como "o Ano 9 é cara ou coroa"**, não como
 uma taxa exata. Um jogador humano bom espreme talvez 10-30% a mais que o robô,
 e essa margem é exatamente a que decide a partida.
+
+### O teto que explica a curva
+
+A produção cresce ~1,11× por ano enquanto a meta cresce 1,78×. Uma colônia
+que vai de 3 a 90 abelhas devia produzir muito mais que isso — e o motivo de
+não produzir é estrutural:
+
+| | |
+| --- | --- |
+| vagas de campo, base | 4 + 5 + 3 + 6 = **18** |
+| máximo com todo Posto Avançado | **34** (16 níveis, 13.108 moedas) |
+| operárias no Ano 9 | **~90** |
+
+Medido no fim de uma partida: 93 operárias, 19 vagas, **74 abelhas sem
+trabalho no campo**, e as 19 vagas todas ocupadas. A produção por ano fica
+55, 123, 417, 584, 751, 691, 613, 1034, 937 — ela **plana** a partir do Ano 5,
+e chega a cair.
+
+Ou seja: passar de ~34 operárias não só não ajuda como **atrapalha** — as
+abelhas a mais comem mel e sobem o CO₂, que desacelera o favo.
+
+A consequência para o balanço: existe um ano em que a meta, que compõe a
+1,78× sem parar, cruza um teto de produção que é fixo. Qual ano é esse não
+depende de habilidade nenhuma. **A partida não se perde por erro do jogador,
+se perde por aritmética.**
+
+> Limitação conhecida da régua: o robô gasta as moedas em células antes de
+> chegar aos Postos, e termina com 19 das 34 vagas possíveis. Isso o deixa
+> abaixo do teto — mas o argumento acima usa o teto, não o que ele alcançou.

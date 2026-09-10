@@ -57,6 +57,9 @@ export const PADRAO = {
   coloniaPorAno: 3,
   // Moedas que ficam em caixa antes de comprar melhoria.
   caixaMinima: 120,
+  // Quanto o Posto Avançado (que abre vaga) vale acima das melhorias que só
+  // aumentam o rendimento de uma vaga que já existe.
+  pesoDoPosto: 3,
   // Vende até ter esta folga sobre a meta antes de guardar mel para criar.
   folgaDaMeta: 1.15,
   // Encomenda guardiã enquanto a colmeia tiver menos que isto.
@@ -191,18 +194,29 @@ function investir(estado, cfg) {
     comprarCelula(estado, travada);
   }
 
-  // Melhorias: posto abre vaga, o resto aumenta o que cada vaga rende.
-  const campo = [...estado.campos]
-    .filter((c) => estado.nivel >= c.nivelMin)
-    .sort((a, b) => b.taxa - a.taxa)[0];
-  if (!campo) return;
-  for (const id of ['posto', 'ogm', 'sustentavel', 'rota']) {
-    const nivel = campo.upgrades[id] ?? 0;
-    if (nivel >= UPGRADES[id].max) continue;
-    if (estado.moedas < custoUpgrade(id, nivel) + cfg.caixaMinima) continue;
-    comprarUpgrade(estado, campo.id, id);
-    break;
+  // Melhorias, em **todos** os campos liberados. Concentrar num campo só
+  // parece esperto e não é: `posto` é o único jeito de abrir vaga, e vaga é o
+  // teto de tudo — uma colônia de 90 abelhas com 19 vagas tem 74 abelhas sem
+  // trabalho no campo.
+  const abertos = estado.campos.filter((c) => estado.nivel >= c.nivelMin);
+  if (!abertos.length) return;
+
+  const compras = [];
+  for (const campo of abertos) {
+    for (const id of Object.keys(UPGRADES)) {
+      const nivel = campo.upgrades[id] ?? 0;
+      if (nivel >= UPGRADES[id].max) continue;
+      const custo = custoUpgrade(id, nivel);
+      if (estado.moedas < custo + cfg.caixaMinima) continue;
+      // Vaga vale mais que rendimento por vaga enquanto sobrar abelha em
+      // casa sem fazer nada; depois disso, o inverso.
+      const peso = id === 'posto' ? cfg.pesoDoPosto : 1;
+      compras.push({ campo: campo.id, id, valor: (campo.taxa * peso) / custo });
+    }
   }
+  if (!compras.length) return;
+  compras.sort((a, b) => b.valor - a.valor);
+  comprarUpgrade(estado, compras[0].campo, compras[0].id);
 }
 
 // Trocar de rainha custa mel e uma janela sem postura. O inverno é a hora
