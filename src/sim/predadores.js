@@ -1,7 +1,8 @@
 import { sortear } from '../core/rng.js';
 import { melhorPara } from './talentos.js';
 import { mostrarDica } from './dicas.js';
-export const VESPAS = { aviso: 20, guardas: 2, intervaloMin: 100, intervaloMax: 160 };
+import { tentarEvento } from './eventos.js';
+export const VESPAS = { aviso: 20, guardas: 2, intervaloMin: 240, intervaloMax: 390 };
 export function enviarGuarda(estado) {
   if (!estado.ameaca) return { ok: false, motivo: 'Nenhuma vespa por perto.' };
   const guardas = estado.abelhas.filter(a => a.guarda);
@@ -21,12 +22,20 @@ export function atualizarPredadores(estado, t, dt) {
   if (t.estacao.id === 'inverno') {
     estado.ameaca = null;
     for (const a of estado.abelhas) if (a.guarda) a.guarda = false;
-    estado.proximoAtaque = estado.decorrido + VESPAS.intervaloMin;
+    // Só empurra para depois do inverno, sem zerar o relógio: reagendar um
+    // intervalo inteiro aqui tornava o ataque impossível, porque o intervalo
+    // (220 s) é maior que o trecho de ano que sobra antes do inverno seguinte
+    // (180 s) — a vespa era adiada para sempre.
+    estado.proximoAtaque = Math.max(estado.proximoAtaque,
+      estado.decorrido + t.restamSegundos);
     return;
   }
   if (!estado.ameaca) {
     // Não iniciar um ataque que atravessaria a chegada do inverno.
     if (estado.decorrido < estado.proximoAtaque || (t.estacao.id === 'outono' && t.restamSegundos <= VESPAS.aviso)) return;
+    if (!tentarEvento(estado, (espera) => { estado.proximoAtaque = estado.decorrido + espera; })) {
+      return;
+    }
     estado.ameaca = { resta: VESPAS.aviso };
     mostrarDica(estado, 'vespa');
     return;

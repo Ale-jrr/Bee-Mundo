@@ -3,6 +3,7 @@ import { VARIEDADES } from './economia.js';
 import { SEGUNDOS_POR_ESTACAO, relogio } from './estacoes.js';
 import { bonusBencao } from './bencaos.js';
 import { mostrarDica } from './dicas.js';
+import { tentarEvento } from './eventos.js';
 
 // Encomenda: um pedido por uma variedade específica, com prazo. A meta anual
 // só olha o total vendido, então o jogador acaba tratando os quatro méis como
@@ -12,8 +13,8 @@ import { mostrarDica } from './dicas.js';
 // encomenda **e** para a meta do ano — a recompensa é o extra, não um caminho
 // paralelo, e assim nunca compensa segurar mel esperando pedido.
 export const ENCOMENDA = {
-  intervaloMin: 60,
-  intervaloMax: 110,
+  intervaloMin: 180,
+  intervaloMax: 300,
   // Prazo em estações inteiras: o pedido vence no fim da N-ésima estação a
   // partir da atual, que é o que deixa dizer "até o outono" em vez de "em 84s".
   estacoesDePrazo: 2,
@@ -48,6 +49,9 @@ export function atualizarEncomendas(estado, t, dt) {
   }
 
   if (estado.decorrido < estado.proximaEncomenda) return;
+  if (!tentarEvento(estado, (espera) => { estado.proximaEncomenda = estado.decorrido + espera; })) {
+    return;
+  }
   estado.encomenda = criarPedido(estado, t);
   estado.aviso = {
     texto: `Encomenda: ${estado.encomenda.quantidade} de ${VARIEDADES[estado.encomenda.variedade].nome}`,

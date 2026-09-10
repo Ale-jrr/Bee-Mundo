@@ -907,3 +907,45 @@ sem ter comido nada. Agora desconta só o que ela realmente comeu.
 **A dica da primavera nunca apareceria.** O cartão de dica se escondia durante
 a escolha da bênção — justamente a tela que ela explica. Passou a ser desenhado
 por cima do modal, e o toque nela é aceito mesmo com a escolha aberta.
+
+## Os eventos estavam frenéticos
+
+Cinco sistemas de evento nasceram cada um com o seu relógio, sem nenhum saber
+do outro: florada, encomenda, chuva/seca, formigas e vespa. Cada um era
+razoável sozinho. Medido numa partida, somados:
+
+| | Antes | Agora |
+|---|---|---|
+| Intervalo médio entre eventos | 30,7 s | **72 s** |
+| Menor intervalo | 0 s (simultâneos) | **40 s** |
+| Pares com menos de 20 s | 4 | **0** |
+
+Aos 100 s começavam vespa **e** chuva no mesmo segundo; aos 240 s, florada e
+chuva juntas.
+
+A correção tem duas partes:
+
+1. **Um espaçador global** (`sim/eventos.js`): dois eventos nunca começam a
+   menos de 40 s um do outro. Quem é barrado não fica esperando na porta — é
+   reagendado com um atraso curto e sorteado (25-55 s), senão todos disparariam
+   juntos no instante em que o espaço abrisse, que é o mesmo amontoado com
+   outro nome.
+2. **Intervalos maiores** em todos os cinco, e a mistura pendendo para o lado
+   bom: florada 170-280 s, encomenda 180-300, vespa 240-390, tempo 260-420,
+   formigas 300-480.
+
+O resultado sai equilibrado entre os tipos: 3 a 6 de cada em ~1.900 s.
+
+### Dois efeitos colaterais que a medição pegou
+
+**A vespa deixou de existir.** O inverno reagendava `proximoAtaque` para um
+intervalo inteiro à frente. Com o intervalo em 220 s e o inverno seguinte
+começando 180 s depois, o prazo nunca chegava: a vespa era adiada para sempre —
+zero ataques em 1.440 s. Agora o inverno só empurra o relógio para depois dele
+(`Math.max`), sem zerá-lo.
+
+**A produção caiu com as floradas mais raras** e uma semente em seis passou a
+perder no Ano 9. Em vez de mexer na meta, a florada ficou um pouco mais
+frequente que os eventos ruins — mesmo orçamento de eventos, mistura diferente.
+Voltou a 6 de 6, com o Ano 8 entre 886 e 1.708 contra a meta 907 do Ano 9.
+

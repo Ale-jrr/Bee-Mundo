@@ -78,7 +78,10 @@ export function novoJogo(semente = Date.now() & 0xffffffff, desafio = DESAFIO_PA
     mercado: Object.fromEntries(Object.keys(VARIEDADES).map((k) => [k, 1])),
 
     ameaca: null,
-    proximoAtaque: 100,
+    proximoAtaque: 220,
+    // Instante do último evento que começou. É o que espaça florada, encomenda,
+    // tempo, formigas e vespa entre si — ver `sim/eventos.js`.
+    ultimoEvento: null,
     derrota: null,           // { ano, meta, vendido } se a meta não foi batida
     vitoria: null,           // { ano, total, abelhas } ao sobreviver ao ano final
     historico: [],           // um registro por ano encerrado

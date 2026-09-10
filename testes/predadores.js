@@ -4,7 +4,9 @@ import {relogio} from '../src/sim/estacoes.js';
 import {serializar,desserializar} from '../src/core/save.js';
 import {passo} from '../src/sim/tick.js';
 export function rodar(){let total=0;const detalhes=[];const ok=(n,c)=>{total++;if(!c)detalhes.push(n)};
-const criar=()=>{const s=novoJogo(42);s.decorrido=100;atualizarPredadores(s,relogio(100),1/30);return s;};
+// `proximoAtaque` zerado: os intervalos de evento ficaram longos de proposito
+// e o que este teste quer e a vespa na porta, nao a espera ate ela chegar.
+const criar=()=>{const s=novoJogo(42);s.decorrido=100;s.proximoAtaque=0;atualizarPredadores(s,relogio(100),1/30);return s;};
 let s=criar();ok('aviso antes de dano',s.ameaca.resta===20&&s.abelhas.length===3);
 Object.assign(s.abelhas[1],{campo:s.campos[0].id,estado:'coletando'});s.ameaca.resta=.01;passo(s,1/30);ok('uma coletora perdida',s.abelhas.length===2&&s.campos[0].alocadas===0);ok('intervalo tranquilo',s.proximoAtaque>=s.decorrido+100&&!s.ameaca);
 s=criar();s.campos[0].alocadas=0;ok('envia guarda',enviarGuarda(s).ok);ok('envia segunda',enviarGuarda(s).ok);ok('limite de duas',!enviarGuarda(s).ok);

@@ -29,6 +29,7 @@ import { estaMinimizado, alternarMinimizado, recuoDoBotao } from '../src/ui/cart
 import { avisosAtivos, avisosNovos, temUrgente } from '../src/sim/avisos.js';
 import { desenharChips, alturaDosChips } from '../src/ui/desafios.js';
 import { DESAFIOS } from '../src/sim/desafios.js';
+import { EVENTOS, tentarEvento, segundosDesdeOUltimoEvento } from '../src/sim/eventos.js';
 import * as S from '../src/core/save.js';
 import { DESAFIO_PADRAO, regraDoDesafio, penalidadeDoInverno } from '../src/sim/desafios.js';
 import {
@@ -163,6 +164,9 @@ export function rodar() {
   const jogo = novoJogo(42);
   ok('começa sem florada', campoEmFlorada(jogo) === null);
 
+  // Os eventos passaram a ser espacados de proposito (ver `sim/eventos.js`),
+  // entao o teste arma o relogio da florada em vez de esperar o sorteio.
+  jogo.proximaFlorada = 0;
   let abriu = null, fechou = null, simultaneas = 0;
   for (let i = 0; i < 30 * 400; i++) {
     passo(jogo, 1 / 30);
@@ -175,8 +179,12 @@ export function rodar() {
   ok('nunca duas ao mesmo tempo', simultaneas <= 1, `${simultaneas} juntas`);
   ok('dura o combinado', Math.abs((fechou - abriu) - FLORADA.duracao) < 0.2,
     `durou ${(fechou - abriu).toFixed(1)}s`);
-  ok('primeira não vem antes do intervalo', abriu >= FLORADA.intervaloMin - 0.1,
-    `veio aos ${abriu?.toFixed(0)}s`);
+  // O relógio foi armado à mão acima, então o que dá pra verificar aqui é o
+  // reagendamento: depois de uma florada, a próxima fica pelo menos um
+  // intervalo à frente.
+  ok('a próxima fica um intervalo à frente',
+    jogo.proximaFlorada - fechou >= FLORADA.intervaloMin - 0.1,
+    `${(jogo.proximaFlorada - fechou).toFixed(0)}s depois`);
 
   // O efeito só existe enquanto dura, e vale para os dois números do campo.
   const campo = { ...novoJogo(1).campos[0], florada: 0 };
@@ -215,7 +223,8 @@ export function rodar() {
 
   const enc = novoJogo(42);
   ok('começa sem encomenda', encomendaAtiva(enc) === null);
-  for (let i = 0; i < 30 * 61; i++) passo(enc, 1 / 30);
+  enc.proximaEncomenda = 0;
+  passo(enc, 1 / 30);
   const pedido = encomendaAtiva(enc);
   ok('a encomenda chega', pedido !== null);
   ok('pede uma variedade que existe', pedido && VARIEDADES[pedido.variedade] !== undefined);
@@ -226,7 +235,8 @@ export function rodar() {
 
   // Entregar é vender: o pote certo paga, o errado não.
   const cheio = novoJogo(42);
-  for (let i = 0; i < 30 * 61; i++) passo(cheio, 1 / 30);
+  cheio.proximaEncomenda = 0;
+  passo(cheio, 1 / 30);
   const alvo = encomendaAtiva(cheio);
   cheio.pote[alvo.variedade] = alvo.quantidade;
   const moedasAntes = cheio.moedas;
@@ -239,7 +249,8 @@ export function rodar() {
   ok('e a próxima é agendada', cheio.proximaEncomenda > cheio.decorrido);
 
   const meio = novoJogo(42);
-  for (let i = 0; i < 30 * 61; i++) passo(meio, 1 / 30);
+  meio.proximaEncomenda = 0;
+  passo(meio, 1 / 30);
   const p2 = encomendaAtiva(meio);
   meio.pote[p2.variedade] = 1;
   const parcial = A.vender(meio, p2.variedade, relogio(meio.decorrido).estacao);
@@ -247,7 +258,8 @@ export function rodar() {
   ok('entrega parcial conta', encomendaAtiva(meio).entregue === 1);
 
   const errado = novoJogo(42);
-  for (let i = 0; i < 30 * 61; i++) passo(errado, 1 / 30);
+  errado.proximaEncomenda = 0;
+  passo(errado, 1 / 30);
   const p3 = encomendaAtiva(errado);
   const outra = Object.keys(errado.pote).find((v) => v !== p3.variedade);
   errado.pote[outra] = 5;
@@ -256,7 +268,8 @@ export function rodar() {
 
   // Vencida some sozinha, sem punir — é objetivo extra, não segunda meta.
   const vencida = novoJogo(42);
-  for (let i = 0; i < 30 * 61; i++) passo(vencida, 1 / 30);
+  vencida.proximaEncomenda = 0;
+  passo(vencida, 1 / 30);
   const pv = encomendaAtiva(vencida);
   vencida.moedas = 500;
   vencida.decorrido = pv.vence + 0.1;
@@ -561,6 +574,7 @@ export function rodar() {
 
   // Na partida: abre na florada e some quando ela acaba.
   const emJogo = novoJogo(42);
+  emJogo.proximaFlorada = 0;
   // Conta só a dica da florada: outras mecânicas (tempo, vespa, formigas)
   // também abrem a sua nesse intervalo, e antes o teste somava todas.
   let abriu9 = 0, fechouSozinha = false;
@@ -691,6 +705,7 @@ export function rodar() {
   ok('e não mexe na coleta', fatorDaColeta(secando) === 1);
 
   const comTempo = novoJogo(42);
+  comTempo.proximoTempo = 0;
   let viu = null;
   for (let i = 0; i < 30 * 200; i++) {
     passo(comTempo, 1 / 30);
@@ -864,6 +879,55 @@ export function rodar() {
   // A tela de início e o menu leem a mesma grade: um desafio novo aparece nos
   // dois sem ninguém lembrar de atualizar o segundo.
   ok('início e menu compartilham a grade', typeof desenharChips === 'function');
+
+  // ------------------------------------------ 24. espaçamento de eventos
+
+  ok('sem evento nenhum, o espaço é livre',
+    segundosDesdeOUltimoEvento(novoJogo(42)) === Infinity);
+
+  const espacador = novoJogo(42);
+  espacador.decorrido = 500;
+  let adiado = null;
+  ok('o primeiro evento passa',
+    tentarEvento(espacador, (e) => { adiado = e; }) === true);
+  ok('e fica registrado', espacador.ultimoEvento === 500);
+  ok('nada foi adiado', adiado === null);
+
+  // Logo em seguida, o segundo é barrado e reagendado.
+  espacador.decorrido = 500 + EVENTOS.espacoMinimo / 2;
+  ok('o segundo é barrado', tentarEvento(espacador, (e) => { adiado = e; }) === false);
+  ok('e sai com atraso sorteado',
+    adiado >= EVENTOS.adiamentoMin && adiado <= EVENTOS.adiamentoMax, `${adiado}`);
+  ok('o barrado não vira o último evento', espacador.ultimoEvento === 500);
+
+  // Passado o espaço mínimo, volta a passar.
+  espacador.decorrido = 500 + EVENTOS.espacoMinimo + 0.1;
+  ok('depois do espaço mínimo passa', tentarEvento(espacador) === true);
+
+  // Numa partida de verdade: nenhum par de eventos abaixo do espaço mínimo.
+  const ritmo = novoJogo(7);
+  const inicios = [];
+  const antes = { fl: false, enc: null, tp: null, fo: null, ve: null };
+  for (let i = 0; i < 30 * 900; i++) {
+    if (ritmo.escolha) escolherBencao(ritmo, ritmo.escolha.opcoes[0].id);
+    if (i % 30 === 0) {
+      for (const c of A.celulasMaduras(ritmo)) A.colher(ritmo, c);
+      for (const v of Object.keys(ritmo.pote)) A.vender(ritmo, v, relogio(ritmo.decorrido).estacao);
+    }
+    passo(ritmo, 1 / 30);
+    const fl = ritmo.campos.some((c) => (c.florada ?? 0) > 0);
+    if (fl && !antes.fl) inicios.push(ritmo.decorrido); antes.fl = fl;
+    if (ritmo.encomenda && !antes.enc) inicios.push(ritmo.decorrido); antes.enc = ritmo.encomenda;
+    if (ritmo.tempo && !antes.tp) inicios.push(ritmo.decorrido); antes.tp = ritmo.tempo;
+    if (ritmo.formigas && !antes.fo) inicios.push(ritmo.decorrido); antes.fo = ritmo.formigas;
+    if (ritmo.ameaca && !antes.ve) inicios.push(ritmo.decorrido); antes.ve = ritmo.ameaca;
+    if (ritmo.derrota || ritmo.vitoria) break;
+  }
+  const juntos = inicios.filter((t, i) => i > 0 && t - inicios[i - 1] < EVENTOS.espacoMinimo - 0.1);
+  ok('nenhum par de eventos amontoado na partida', juntos.length === 0,
+    `${juntos.length} pares em ${inicios.length} eventos`);
+  ok('e os eventos continuam acontecendo', inicios.length >= 4,
+    `${inicios.length} em 900 s`);
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

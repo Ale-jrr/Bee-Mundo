@@ -62,6 +62,7 @@ export function serializar(estado) {
     proximaFlorada: estado.proximaFlorada ?? null,
     encomenda: estado.encomenda ?? null,
     proximaEncomenda: estado.proximaEncomenda ?? null,
+    ultimoEvento: estado.ultimoEvento ?? null,
     formigas: estado.formigas ?? null,
     proximaFormiga: estado.proximaFormiga ?? null,
     rainhaDesde: estado.rainhaDesde ?? 0,
@@ -92,7 +93,7 @@ export function desserializar(dados) {
     'derrota', 'vitoria', 'turbo', 'consumoDeMel', 'proximaFlorada',
     'encomenda', 'proximaEncomenda', 'escolha', 'dica', 'enxame',
     'tempo', 'proximoTempo', 'rainhaDesde', 'interregno',
-    'formigas', 'proximaFormiga', 'ameaca', 'proximoAtaque',
+    'formigas', 'proximaFormiga', 'ultimoEvento', 'ameaca', 'proximoAtaque',
   ]) {
     if (dados[chave] !== undefined) estado[chave] = dados[chave];
   }

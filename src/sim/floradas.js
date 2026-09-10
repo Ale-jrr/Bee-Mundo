@@ -2,6 +2,7 @@ import { sortear } from '../core/rng.js';
 import { statsDoCampo } from './economia.js';
 import { mostrarDica, fecharDica } from './dicas.js';
 import { bonusBencao } from './bencaos.js';
+import { tentarEvento } from './eventos.js';
 
 // Florada: um campo entra em flor por pouco tempo e rende muito mais. É a
 // única coisa no jogo que muda o valor de um campo **durante** a partida, e é
@@ -9,8 +10,10 @@ import { bonusBencao } from './bencaos.js';
 // curso, e o campo que floresce pode ser justamente o mais perigoso.
 export const FLORADA = {
   duracao: 25,
-  intervaloMin: 90,
-  intervaloMax: 150,
+  // Intervalos quase dobrados: com cinco sistemas de evento correndo juntos, o
+  // que era razoável sozinho virava um evento a cada 30 s no total.
+  intervaloMin: 170,
+  intervaloMax: 280,
   taxa: 1.6,          // multiplicador da taxa do campo enquanto dura
   reserva: 1.5,       // e do néctar que o campo comporta
   // Não começa uma florada que morreria na virada do inverno: prometer uma
@@ -61,6 +64,10 @@ export function atualizarFloradas(estado, t, dt) {
 
   const abertos = estado.campos.filter((c) => estado.nivel >= c.nivelMin);
   if (!abertos.length) return;
+
+  if (!tentarEvento(estado, (espera) => { estado.proximaFlorada = estado.decorrido + espera; })) {
+    return;
+  }
 
   const campo = abertos[Math.floor(sortear(estado) * abertos.length)] ?? abertos[0];
   campo.florada = FLORADA.duracao * bonusBencao(estado, 'florada');

@@ -1,5 +1,6 @@
 import { sortear } from '../core/rng.js';
 import { mostrarDica, fecharDica } from './dicas.js';
+import { tentarEvento } from './eventos.js';
 
 // Tempo dentro da estação. A estação era o mesmo número do primeiro ao último
 // segundo: escolhida a turma na virada, não havia mais nada a decidir até a
@@ -11,8 +12,8 @@ import { mostrarDica, fecharDica } from './dicas.js';
 //   chuva → as abelhas quase não colhem enquanto dura
 //   seca  → os campos param de se recompor, então o néctar acumulado acaba
 export const TEMPO = {
-  intervaloMin: 100,
-  intervaloMax: 180,
+  intervaloMin: 260,
+  intervaloMax: 420,
   duracao: 18,
   // Fora do inverno, que já é o aperto da estação e não tem coleta nenhuma.
   chuva: { nome: 'chuva', coleta: 0.15, rebrota: 1 },
@@ -61,6 +62,10 @@ export function atualizarTempo(estado, t, dt) {
   if (!possiveis.length) return;
   // Não começa uma que a virada da estação cortaria pela metade.
   if (t.restamSegundos <= TEMPO.duracao) return;
+
+  if (!tentarEvento(estado, (espera) => { estado.proximoTempo = estado.decorrido + espera; })) {
+    return;
+  }
 
   const tipo = possiveis[Math.floor(sortear(estado) * possiveis.length)] ?? possiveis[0];
   estado.tempo = { tipo, resta: TEMPO.duracao };
