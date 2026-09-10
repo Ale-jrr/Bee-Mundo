@@ -1,6 +1,7 @@
 import { paraPixel } from '../sim/hex.js';
 import { caminhoHex, numero, FONTE } from './desenho.js';
 import { CELULA, VARIEDADES, SILO, precoDaCelula } from '../sim/economia.js';
+import { TALENTOS } from '../sim/talentos.js';
 
 const TAM_MAX = 84;
 const TAM_MIN = 22;
@@ -9,7 +10,35 @@ const RAIZ3 = Math.sqrt(3);
 // Geometria do favo: centro e tamanho do hexágono, derivados do viewport e da
 // extensão atual do favo. Fonte única — o desenho e o hit-test do toque leem
 // daqui, então o favo cabe na tela em qualquer largura e encolhe ao crescer.
-export function geometriaFavo(estado, L, A) {
+// Zoom da vista. Faixa curta de propósito: o favo já se ajusta sozinho à tela,
+// e o zoom existe só para o caso do favo grande, em que a célula encosta no
+// mínimo (22 px) e os números ficam difíceis de ler no celular. Passo de 0,15
+// para caber uns quatro toques de ponta a ponta.
+export const ZOOM = { min: 0.8, max: 1.6, passo: 0.15 };
+
+export function limitarZoom(zoom) {
+  return Math.min(ZOOM.max, Math.max(ZOOM.min, zoom));
+}
+
+// Deslocamento máximo da câmera, como fração da tela. Sem teto o jogador
+// empurra o favo para fora e fica olhando para o fundo sem saber o que houve.
+const ALCANCE_CAMERA = 0.42;
+
+// Limita o quanto a câmera pode se afastar do centro. Mora aqui porque o
+// mesmo limite vale para quem arrasta (entrada) e para quem desenha.
+export function limitarCamera(camera, L, A) {
+  const maxX = L * ALCANCE_CAMERA;
+  const maxY = A * ALCANCE_CAMERA;
+  camera.x = Math.min(maxX, Math.max(-maxX, camera.x));
+  camera.y = Math.min(maxY, Math.max(-maxY, camera.y));
+  return camera;
+}
+
+// `camera` é deslocamento em pixels de tela, escolhido pelo jogador arrastando.
+// Entra aqui, e não no desenho, porque o hit-test do toque lê desta mesma
+// função — se os dois não usassem a mesma origem, tocar numa célula depois de
+// mover a vista acertaria a célula errada.
+export function geometriaFavo(estado, L, A, camera = null) {
   const celulas = Object.values(estado.celulas);
   let extX = 1, extY = 1;
   for (const c of celulas) {
@@ -23,9 +52,17 @@ export function geometriaFavo(estado, L, A) {
   // estreita o favo pode usar quase toda a largura.
   const dispL = L * (compacto ? 0.94 : 0.60);
   const dispA = A * (compacto ? 0.52 : 0.62);
-  const tam = Math.max(TAM_MIN, Math.min(TAM_MAX, dispL / (2 * extX), dispA / (2 * extY)));
+  const ajustado = Math.max(TAM_MIN, Math.min(TAM_MAX, dispL / (2 * extX), dispA / (2 * extY)));
+  // O zoom multiplica **depois** do ajuste à tela: o enquadramento automático
+  // continua sendo o ponto de partida, e o jogador só desvia dele de propósito.
+  // Escalar em torno de (cx, cy) mantém o centro do favo parado.
+  const tam = ajustado * limitarZoom(camera?.zoom ?? 1);
 
-  return { cx: L / 2, cy: A * (compacto ? 0.46 : 0.52), tam };
+  return {
+    cx: L / 2 + (camera?.x ?? 0),
+    cy: A * (compacto ? 0.46 : 0.52) + (camera?.y ?? 0),
+    tam,
+  };
 }
 
 export function centroDaCelula(celula, cx, cy, tam) {
@@ -102,22 +139,18 @@ function desenharCelula(ctx, celula, estado, pal, cx, cy, tam) {
   // Ovo: elipse clara que ganha opacidade conforme a eclosão avança, para o
   // jogador ver que a ninhada travou quando a temperatura sai da faixa.
   if (celula.estado === 'ovo') {
-    // Um ovo desenhado por abelha a caminho: dá pra ver, sem número, quantas
-    // vão nascer daquela ninhada.
+    // Uma cria por abelha a caminho: dá pra ver, sem número, quantas vão
+    // nascer daquela ninhada — e cada uma amadurece no seu próprio ritmo.
     const quantos = celula.ovos?.length ?? Math.max(1, celula.ninhada ?? 1);
-    ctx.save();
-
-    ctx.fillStyle = '#f6f0dc';
     for (let i = 0; i < quantos; i++) {
-      ctx.globalAlpha = 0.45 + 0.5 * (celula.ovos?.[i]?.cura ?? celula.cura);
+      const cura = Math.min(1, Math.max(0, celula.ovos?.[i]?.cura ?? celula.cura ?? 0));
       const a = -Math.PI / 2 + (i - (quantos - 1) / 2) * 0.9;
       const r = quantos === 1 ? 0 : tam * 0.22;
-      ctx.beginPath();
-      ctx.ellipse(x + Math.cos(a) * r, y + Math.sin(a) * r * 0.6,
-        tam * 0.1, tam * 0.15, -0.25, 0, Math.PI * 2);
-      ctx.fill();
+      // A fase desencontra as animações: três crias respirando em uníssono
+      // parecem um relógio, não uma ninhada.
+      const fase = (celula.q * 3.1 + celula.r * 1.7 + i * 2.3);
+      desenharCria(ctx, x + Math.cos(a) * r, y + Math.sin(a) * r * 0.6, tam, cura, fase);
     }
-    ctx.restore();
   }
 
   // Silo: célula guardando pólen. Existem vários, e cada um mostra seu próprio
@@ -203,6 +236,89 @@ function misturar(rgbA, hexB, t) {
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
 
+// Ovo → larva → abelha. Antes a ninhada era uma elipse parada que só ganhava
+// opacidade, e ninhada parada é a coisa mais sem vida do favo: dava pra olhar
+// duas vezes e não saber se ela tinha andado. Agora a cria muda de forma, de
+// cor e de ritmo conforme a eclosão avança, então o estado dela se lê de
+// relance — pálida e quieta é começo, listrada e mexendo é quase nascendo.
+const CREME = [246, 240, 220];
+
+function desenharCria(ctx, cx, cy, tam, cura, fase) {
+  const t = performance.now() / 1000;
+  // Quanto mais perto de nascer, mais ela se mexe. No começo é quase parada:
+  // o contraste entre os dois é o que dá a leitura de progresso.
+  const vida = 0.25 + 0.75 * cura;
+  const pulso = 1 + 0.07 * vida * Math.sin(t * (1.5 + 2.5 * cura) + fase);
+  const inclina = -0.25 + 0.22 * vida * Math.sin(t * (1.1 + 1.9 * cura) + fase * 1.7);
+
+  // O corpo engorda e arredonda: o ovo é fino e comprido, a abelha é curta e
+  // larga. Interpolar os dois raios faz a transformação sem estágios visíveis.
+  const rx = tam * (0.095 + 0.055 * cura) * pulso;
+  const ry = tam * (0.155 + 0.020 * cura) * pulso;
+
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(inclina);
+  ctx.globalAlpha = 0.5 + 0.5 * Math.min(1, cura * 2.2);
+
+  // Asas brotam no fim, por trás do corpo.
+  const asa = suavizar(cura, 0.78, 1);
+  if (asa > 0) {
+    ctx.save();
+    ctx.globalAlpha *= 0.55 * asa;
+    ctx.fillStyle = '#ffffff';
+    for (const lado of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(lado * rx * 0.95, -ry * 0.35, rx * 0.85 * asa, ry * 0.4 * asa,
+        lado * 0.6, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // Corpo: creme de larva puxando para o amarelo da abelha.
+  ctx.beginPath();
+  ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+  ctx.fillStyle = misturar(CREME, '#f2c31c', suavizar(cura, 0.3, 0.9));
+  ctx.fill();
+
+  // Listras, recortadas no corpo. Entram depois da metade, quando já dá pra
+  // dizer que aquilo vai virar abelha.
+  const listra = suavizar(cura, 0.5, 0.95);
+  if (listra > 0) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(0, 0, rx, ry, 0, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.globalAlpha *= listra;
+    ctx.fillStyle = '#2f2a22';
+    const passo = ry * 0.62;
+    for (let f = -ry; f < ry; f += passo) {
+      ctx.fillRect(-rx, f, rx * 2, passo * 0.42);
+    }
+    ctx.restore();
+  }
+
+  // Cabeça, no fim: é ela que faz o desenho virar bicho e não semente.
+  const cabeca = suavizar(cura, 0.62, 1);
+  if (cabeca > 0) {
+    ctx.beginPath();
+    ctx.ellipse(0, -ry - ry * 0.18 * cabeca, rx * 0.62 * cabeca, ry * 0.34 * cabeca,
+      0, 0, Math.PI * 2);
+    ctx.fillStyle = '#2f2a22';
+    ctx.globalAlpha *= cabeca;
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+// 0 antes de `de`, 1 depois de `ate`, suave no meio — evita que asa e cabeça
+// apareçam de estalo num quadro só.
+function suavizar(valor, de, ate) {
+  const t = Math.min(1, Math.max(0, (valor - de) / (ate - de)));
+  return t * t * (3 - 2 * t);
+}
+
 // Brilho diagonal das células cheias, como nas telas de referência: é o que
 // diz "isto está cheio" antes mesmo de a cor registrar.
 function brilho(ctx, x, y, tam) {
@@ -219,7 +335,7 @@ function brilho(ctx, x, y, tam) {
 }
 
 // Abelha vetorial simples: corpo listrado, asas translúcidas, coroa se rainha.
-export function desenharAbelha(ctx, x, y, escala, pal, rainha, progresso) {
+export function desenharAbelha(ctx, x, y, escala, pal, rainha, progresso, talento = null) {
   ctx.save();
   ctx.translate(x, y);
   const tamanho = escala * (rainha ? 1.3 : 1);
@@ -254,6 +370,19 @@ export function desenharAbelha(ctx, x, y, escala, pal, rainha, progresso) {
   ctx.beginPath();
   ctx.ellipse(0, -14, 9, 8, 0, 0, Math.PI * 2);
   ctx.fill();
+
+  // Marca do talento: um ponto colorido nas costas. Identificação simples de
+  // propósito — ícone ou letra some quando o favo cresce e a abelha fica com
+  // 12 px, e a cor sobrevive ao encolhimento.
+  if (talento && TALENTOS[talento]) {
+    ctx.beginPath();
+    ctx.arc(0, 4, 5.5, 0, Math.PI * 2);
+    ctx.fillStyle = TALENTOS[talento].cor;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,246,214,0.9)';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+  }
 
   if (rainha) {
     // Coroa de três pontas, contornada para continuar visível em todas as estações.

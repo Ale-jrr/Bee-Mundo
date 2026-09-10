@@ -124,8 +124,14 @@ export const NINHADA = {
   // Abaixo deste ritmo de eclosão a rainha para de pôr. Sem isso ela enche o
   // favo de ovos que não vingam e a colmeia trava sozinha no inverno.
   ritmoMinimoParaPor: 0.25,
-  // Fora da faixa a eclosão desacelera até parar de vez.
-  toleranciaGraus: 5,
+  // Fora da faixa a eclosão desacelera até parar de vez. Com 5 a eclosão zerava
+  // a 28 °C, e uma colônia de duas ou três abelhas só passa disso no pico do
+  // verão: bastava perder uma operária (vespa ou frio) para a ninhada congelar
+  // e a colmeia nunca mais se recompor — medido, 5 de 6 sementes morriam no
+  // Ano 2 ou 3 com o favo parado. Com 7 o frio **atrasa** a ninhada em vez de
+  // matá-la, e o inverno (favo a 9-15 °C) continua parando tudo, que é a
+  // regra que interessa.
+  toleranciaGraus: 7,
   // Alimentar a ninhada: cada pote de mel adianta esta fração da eclosão.
   // A 0,1 são dez potes para chocar um ovo do zero — na prática o jogador
   // gasta dois ou três no fim, para não esperar o último pedaço.

@@ -803,3 +803,61 @@ colhia mas não vendia, então perdia o Ano 1, e `passo` congela na derrota — 
 6 de 6 sementes vencem. O Ano 1 sai de 16 para ~85 vendidos: o começo deixou de
 ser um funil. O fim continua apertado — o Ano 9 pede 907 e a semente mais fraca
 produz 925 no Ano 8. `META.crescimento` segue em 1,78.
+
+## O jogo estava invencível — e não era pelas funcionalidades novas
+
+Ao medir as sete funcionalidades, o robô perdia no **Ano 2 com 2 abelhas** em
+6 de 6 sementes. Antes de mexer em nada, rodei o mesmo robô contra o commit
+`v0.1.0-base` extraído do git, servido em paralelo na porta 5174: **mesma
+derrota, mesmas 2 abelhas**. O problema já estava lá.
+
+A cadeia, medida passo a passo numa partida:
+
+| Momento | O que acontece |
+|---|---|
+| 120 s | A vespa mata a coletora e **zera a turma do campo** |
+| 180 s | A virada do inverno mata a última operária que estava fora |
+| 180-340 s | Só a rainha. Sem operária não há coleta nem mel |
+| 340 s | A primeira ninhada finalmente eclode — Ano 2 já foi |
+
+E por que a ninhada demorava 260 s para nascer: `toleranciaGraus: 5` zerava a
+eclosão abaixo de **28 °C**, e uma colônia de duas ou três abelhas tem 2,8-4,2 °C
+de autoridade térmica — o favo só passa de 28 °C no pico do verão. Perder uma
+operária congelava a ninhada, e sem ninhada não havia como recuperar a operária.
+
+Duas correções, nesta ordem:
+
+1. **Recolher antes do inverno** (funcionalidade 8.1). Ensinando o robô a usar o
+   painel novo, o resultado saiu de 0 de 6 sobrevivendo ao Ano 2 para 1 vitória
+   e a maioria chegando ao Ano 3 — várias por um fio (29/29, 15/16). O painel não
+   é conforto: é a saída de uma armadilha que estava matando a partida.
+2. **`toleranciaGraus` 5 → 7.** O frio passa a **atrasar** a ninhada em vez de
+   matá-la. O inverno continua parando tudo (favo a 9-15 °C), que é a regra que
+   interessa.
+
+### Curva final
+
+Robô que colhe, vende, compra célula e melhoria, escolhe bênção e **recolhe
+antes do inverno**:
+
+| Semente | Fim | Colônia | Ano 8 vendido (meta 510) |
+|---|---|---|---|
+| 1 | vitória | 88 | 1.114 |
+| 7 | vitória | 130 | 1.236 |
+| 42 | vitória | 99 | 945 |
+| 99 | vitória | 128 | 983 |
+| 123 | vitória | 151 | 1.089 |
+| 777 | vitória | 176 | 1.074 |
+
+6 de 6 vencem e o Ano 9 continua sendo o aperto: pede 907 contra 945-1.236
+produzidos por um robô que joga perfeito. `META.crescimento` segue em **1,78**.
+
+Os três desafios são vencíveis por esse mesmo robô, com colônia menor no mais
+duro: *campos perigosos* fecha em 79 abelhas contra 88-99 do modo comum.
+
+### O que ainda não foi medido
+
+O robô recolhe as coletoras em **toda** virada de inverno, o que um jogador
+humano vai esquecer às vezes. A margem do Ano 9 (8% a 36%) não tem folga para
+muitos esquecimentos — se na prática ficar difícil demais, o lugar de mexer é
+`META.crescimento`, não a tolerância da ninhada.

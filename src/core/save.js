@@ -12,6 +12,7 @@ function serializarCampos(estado) {
   return estado.campos.map((c) => ({
     id: c.id,
     nectar: c.nectar,
+    florada: c.florada ?? 0,
     alocadas: c.alocadas,
     polenAlocadas: c.polenAlocadas,
     upgrades: { ...c.upgrades },
@@ -24,6 +25,7 @@ function reidratarCampos(salvos = []) {
     return {
       ...base,
       nectar: salvo?.nectar ?? base.nectarMax,
+      florada: salvo?.florada ?? 0,
       alocadas: salvo?.alocadas ?? base.alocadasInicial,
       polenAlocadas: salvo?.polenAlocadas ?? base.polenInicial,
       upgrades: { sustentavel: 0, rota: 0, ogm: 0, ...(salvo?.upgrades ?? {}) },
@@ -36,6 +38,7 @@ export function serializar(estado) {
     versao: VERSAO_SAVE,
     salvoEm: Date.now(),
     semente: estado.semente,
+    desafio: estado.desafio ?? null,
     rngEstado: estado.rngEstado,
     decorrido: estado.decorrido,
     velocidade: estado.velocidade,
@@ -56,6 +59,13 @@ export function serializar(estado) {
     ameaca: estado.ameaca ?? null,
     proximoAtaque: estado.proximoAtaque,
     turbo: estado.turbo ?? null,
+    proximaFlorada: estado.proximaFlorada ?? null,
+    encomenda: estado.encomenda ?? null,
+    proximaEncomenda: estado.proximaEncomenda ?? null,
+    dica: estado.dica ?? null,
+    dicasVistas: estado.dicasVistas ?? {},
+    bencaos: estado.bencaos ?? {},
+    escolha: estado.escolha ?? null,
     derrota: estado.derrota,
     vitoria: estado.vitoria,
     historico: estado.historico,
@@ -66,13 +76,14 @@ export function serializar(estado) {
 // Reconstrói sobre um jogo novo: qualquer campo que o save não tenha (porque é
 // mais antigo que o código) fica com o padrão em vez de virar `undefined`.
 export function desserializar(dados) {
-  const base = novoJogo(dados.semente ?? Date.now() & 0xffffffff);
+  const base = novoJogo(dados.semente ?? Date.now() & 0xffffffff, dados.desafio ?? undefined);
   const estado = { ...base };
 
   for (const chave of [
     'rngEstado', 'decorrido', 'velocidade', 'ano', 'vendidoNoAno', 'moedas',
     'nivel', 'xp', 'celulasCompradas', 'proximaPostura', 'proximoIdAbelha',
-    'derrota', 'vitoria', 'turbo', 'consumoDeMel', 'ameaca', 'proximoAtaque',
+    'derrota', 'vitoria', 'turbo', 'consumoDeMel', 'proximaFlorada',
+    'encomenda', 'proximaEncomenda', 'escolha', 'dica', 'ameaca', 'proximoAtaque',
   ]) {
     if (dados[chave] !== undefined) estado[chave] = dados[chave];
   }
@@ -82,6 +93,8 @@ export function desserializar(dados) {
   if (dados.historico) estado.historico = dados.historico;
   if (dados.clima) estado.clima = { ...base.clima, ...dados.clima };
   if (dados.pote) estado.pote = { ...base.pote, ...dados.pote };
+  if (dados.bencaos) estado.bencaos = { ...dados.bencaos };
+  if (dados.dicasVistas) estado.dicasVistas = { ...dados.dicasVistas };
   // Apenas variedades do catálogo entram na simulação. Valores inválidos
   // voltam ao padrão sem descartar o restante do progresso.
   estado.mercado = Object.fromEntries(Object.entries(base.mercado).map(([id, padrao]) => {

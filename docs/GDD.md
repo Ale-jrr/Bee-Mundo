@@ -315,3 +315,135 @@ turma no máximo, chegou a 8 abelhas e morreu no Ano 2.
 
 ## 7. Aberto
 Ver `docs/DUVIDAS.md`.
+
+## 8. As sete funcionalidades
+
+Entraram todas de uma vez, cada uma com testes em `testes/funcionalidades.js`.
+
+### 8.1 Preparar o inverno — `sim/inverno.js`, `ui/inverno.js`
+Painel que aparece sozinho nos últimos 25 s do outono e some na primavera.
+Mostra a previsão de consumo (`reservaInverno`), quantas coletoras ainda estão
+fora e quanto falta para a mais atrasada voltar. `aTempo` compara essa volta com
+o que resta de outono — é a diferença entre "ainda dá" e "essa não volta".
+O botão **recolher todas** zera as turmas e traz voando quem está no ar; não
+teletransporta, senão o "volta em Xs" não significaria nada.
+
+### 8.2 Colmeia visual — `render/ornamentos.js`
+Três sinais em volta do favo, um por conquista: **moldura de cera** que engrossa
+com as células compradas, **contas** na borda (uma por ano sobrevivido, dando a
+volta como mostrador) e **flores** (uma a cada duas melhorias de campo). Os
+enfeites se penduram nas células de borda, não num círculo — o favo não é
+redondo. Têm piso em pixels: escalando só por `tam`, sumiam com 1,5 px justo
+quando havia mais o que mostrar.
+
+### 8.3 Floradas temporárias — `sim/floradas.js`
+A cada 90-150 s um campo aberto floresce por 25 s: taxa ×1,6, reserva ×1,5 e
+enche na hora. Nunca duas ao mesmo tempo, nunca no inverno, e nunca uma que a
+virada do inverno cortaria pela metade. `statsComFlorada` embrulha
+`statsDoCampo` — a florada é regra com tempo, e `economia.js` só guarda
+constantes. O painel de campos acende o cartão e o botão ✿ ganha selo pulsante.
+
+### 8.4 Encomendas — `sim/encomendas.js`, `ui/encomenda.js`
+Um pedido por vez: N potes de uma variedade, com prazo no fim de uma estação
+("até o outono"). **Entregar é vender** — não há botão separado, e o mesmo pote
+conta para a encomenda e para a meta do ano, então nunca compensa segurar mel
+esperando pedido. Paga 1,5× o preço-base. Vencer não custa nada: é objetivo
+extra, não segunda meta.
+
+### 8.5 Bênção da primavera — `sim/bencaos.js`, `ui/bencaos.js`
+Toda virada de ano abre **três cartas** e pausa a simulação até o jogador
+escolher. Duas regras dão a variedade:
+
+1. **O baralho é grande**: quinze cartas para nove escolhas, então nenhuma
+   partida vê tudo e duas partidas não veem o mesmo.
+2. **O valor é sorteado na hora da oferta**, dentro da faixa de cada carta.
+   "Rota Curta 9%" e "Rota Curta 15%" são a mesma carta e decisões diferentes —
+   é isso que impede a terceira primavera de parecer a primeira.
+
+| Campo | Favo | Colônia | Bolsa |
+|---|---|---|---|
+| Rota Curta (coleta) | Mãos de Cera (tempo do mel) | Rainha Fértil (eclosão) | Bom Negociante (preço) |
+| Vento a Favor (viagem) | Passo Firme (andar no favo) | Corpo Quente (aquecer o favo) | Freguesia Fiel (encomendas) |
+| Guardiãs Atentas (risco) | Pólen Farto (custo do mel) | Boca Pequena (consumo de mel) | |
+| Terra Fértil (duração da florada) | Feromônio Forte (organização) | Cera Isolante (inverno) | |
+| | Cera de Sobra (preço da célula) | | |
+
+Teto de 3 níveis por carta, e o estado guarda o **total somado** (não o nível
+vezes um valor fixo): com valor sorteado, duas escolhas da mesma carta podem
+valer 9% e 15%, e recalcular pelo nível perderia isso. Save antigo, que
+guardava só o nível, é convertido em vez de descartado.
+
+A carta mostra o valor da oferta e, se a bênção já foi escolhida antes, quanto
+ela já rende acumulado — repetir tem que ser decisão informada.
+
+### 8.6 Desafios — `sim/desafios.js`
+Escolhidos no menu, valem para a próxima partida: **espaço apertado** (célula
++80%), **campos perigosos** (risco ×2) e **inverno rigoroso** (inverno −30%).
+Cada um é um multiplicador em dois ou três pontos — foi para isso que a regra de
+"nenhum número mágico espalhado" existia.
+
+### 8.7 Personalidade — `sim/talentos.js`
+Quatro em dez operárias nascem comuns; as outras nascem **batedora** (coleta
++25%), **ceroma** (trabalho no favo +25%) ou **guardiã** (metade do risco de
+voo). Marca colorida nas costas, elenco somado no cabeçalho do painel de campos.
+O jogador escolhe **quantas** vão ao campo; qual vai é ofício da colmeia — a
+vaga do campo é da batedora e a da guarda é da guardiã.
+
+### 8.8 Câmera — `render/favo.js`, `ui/camera.js`
+O favo era fixo no centro, e cartão de aviso em cima dele não tinha como sair
+da frente. Agora **arrastar move a vista**; o toque curto (menos de 6 px) segue
+sendo toque, então comprar e colher continuam iguais. O deslocamento é limitado
+a 42% da tela pra ninguém empurrar o favo pra fora e ficar sem referência.
+
+Voltar ao centro: **duplo clique no fundo** (não sobre célula nem sobre painel,
+pra não somar dois toques num hexágono) ou o botão **centralizar**, que só
+aparece quando a vista saiu do lugar — no celular é ele que faz o papel do
+duplo clique.
+
+A câmera entra em `geometriaFavo`, que é a mesma função que o desenho e o
+hit-test do toque usam. Se cada um tivesse a sua origem, tocar numa célula
+depois de mover a vista acertaria a célula errada — há teste varrendo o favo
+inteiro com a vista deslocada pra travar isso.
+
+**Zoom** de 0,8 a 1,6, em passos de 0,15: faixa curta de propósito, porque o
+favo já se ajusta sozinho à tela — o zoom existe para o favo grande, em que a
+célula encosta no mínimo (22 px) e os números ficam difíceis de ler no celular.
+Botões **+** e **−** encostados na borda direita, acima da fileira de ações; no
+PC a roda do mouse faz o mesmo. O zoom multiplica o tamanho do hexágono depois
+do ajuste automático e escala em torno do centro do favo, que por isso não sai
+do lugar. **Centralizar** zera as duas coisas, deslocamento e zoom.
+
+Não vai pro save: enquadramento é vista, não estado de jogo.
+
+### 8.9 Dicas de primeira vez — `sim/dicas.js`, `ui/dicas.js`
+O jogo não tem tutorial, e mecânica que aparece do nada no meio da partida só é
+entendida por quem já entendeu. A dica da **florada** aparece nas duas primeiras
+vezes em que um campo floresce e nunca mais — o contador (`dicasVistas`) vai no
+save justamente pra isso.
+
+Não pausa: a florada está acontecendo agora, e parar o jogo pra ler sobre ela
+seria contraditório. Fecha com um toque em qualquer ponto do cartão, e some
+sozinha quando a florada acaba, porque aí ela perdeu o assunto.
+
+Acrescentar dica para outra mecânica é só uma entrada em `DICAS` mais a chamada
+de `mostrarDica` onde ela acontece.
+
+### 8.10 A ninhada se transforma — `render/favo.js`
+O ovo era uma elipse parada que só ganhava opacidade, e ninhada parada é a
+coisa mais sem vida do favo: dava pra olhar duas vezes e não saber se tinha
+andado. Agora cada cria atravessa **ovo → larva → abelha** conforme a própria
+eclosão avança:
+
+| Progresso | O que se vê |
+|---|---|
+| até ~30% | elipse creme, fina e quase imóvel |
+| ~30-50% | engorda e começa a puxar para o amarelo |
+| ~50% | listras aparecem, recortadas no corpo |
+| ~62% | a cabeça escura surge — vira bicho, não semente |
+| ~78% | asas brotam por trás |
+| 100% | abelha, e nasce |
+
+O ritmo também conta: a cria respira devagar no começo e se mexe cada vez mais
+perto de nascer, com fase própria por célula e por ovo — três crias respirando
+em uníssono pareceriam um relógio, não uma ninhada.
+

@@ -1,6 +1,8 @@
 import { retanguloArredondado, pilula, rotulo, numero, larguraRotulo, FONTE } from '../render/desenho.js';
 import { zona, definirRecorte } from './zonas.js';
-import { UPGRADES, VARIEDADES, statsDoCampo, custoUpgrade } from '../sim/economia.js';
+import { UPGRADES, VARIEDADES, custoUpgrade } from '../sim/economia.js';
+import { statsComFlorada } from '../sim/floradas.js';
+import { TALENTOS, elenco } from '../sim/talentos.js';
 import { medidas, colunas } from './layout.js';
 
 // Painel de campos. Duas turmas dividem os mesmos slots — néctar traz a
@@ -103,6 +105,23 @@ function desenharCabecalho(ctx, estado, pal, x, y, l, m) {
     ['alugada', 'alug', operarias.filter((a) => a.estado === 'alugada').length],
   ];
 
+  // Elenco por talento, logo abaixo das contagens: é o que transforma
+  // "tenho 12 abelhas" em "tenho 3 batedoras" na hora de escalar as turmas.
+  const time = elenco(estado);
+  const ty = y + (m.compacto ? 52 : 72);
+  let tx = x + (m.compacto ? 14 : 34);
+  for (const [id, regra] of Object.entries(TALENTOS)) {
+    if (!time[id]) continue;
+    ctx.beginPath();
+    ctx.arc(tx + 5, ty, 5, 0, Math.PI * 2);
+    ctx.fillStyle = regra.cor;
+    ctx.fill();
+    rotulo(ctx, `${time[id]} ${regra.nome.toLowerCase()}`, tx + 15, ty + 1, {
+      tamanho: 9, cor: pal.css('suave'), espaco: 1.2,
+    });
+    tx += 15 + larguraRotulo(ctx, `${time[id]} ${regra.nome.toLowerCase()}`, 9, 1.2) + 16;
+  }
+
   const cy = y + (m.compacto ? 30 : 44);
   const lMoeda = m.compacto ? 92 : 130;
   let cx = x + (m.compacto ? 14 : 34);
@@ -136,9 +155,18 @@ function desenharCabecalho(ctx, estado, pal, x, y, l, m) {
 
 function desenharCampo(ctx, estado, pal, campo, x, y, l, m) {
   const a = alturaCartao(m);
+  const emFlor = (campo.florada ?? 0) > 0;
   retanguloArredondado(ctx, x, y, l, a, 22);
-  ctx.fillStyle = pal.css('escuro', 0.05);
+  ctx.fillStyle = emFlor ? pal.css('cheia', 0.18) : pal.css('escuro', 0.05);
   ctx.fill();
+  // O cartão inteiro se acende na florada: os números da taxa e do néctar já
+  // vêm multiplicados, e sem a moldura o jogador acharia que leu errado.
+  if (emFlor) {
+    retanguloArredondado(ctx, x, y, l, a, 22);
+    ctx.strokeStyle = pal.css('cheia');
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+  }
 
   const p = m.compacto ? 14 : 24;
   miniatura(ctx, pal, x + p, y + 18, m.compacto ? 48 : 60);
@@ -147,7 +175,12 @@ function desenharCampo(ctx, estado, pal, campo, x, y, l, m) {
   ctx.font = `700 ${m.compacto ? 16 : 20}px ${FONTE}`;
   ctx.fillStyle = pal.css('tinta');
   ctx.textBaseline = 'middle';
-  ctx.fillText(campo.nome.toUpperCase(), x + p + (m.compacto ? 60 : 72), y + (m.compacto ? 34 : 40));
+  const nomeX = x + p + (m.compacto ? 60 : 72);
+  const faixaStatsL = m.compacto ? l - p * 2 : l * 0.62;
+  const limiteNome = m.compacto
+    ? l - p - nomeX + x
+    : Math.max(60, (x + l - faixaStatsL - p) - nomeX - 10);
+  ctx.fillText(campo.nome.toUpperCase(), nomeX, y + (m.compacto ? 34 : 40), limiteNome);
   ctx.restore();
 
   const variedade = VARIEDADES[campo.variedade];
@@ -159,9 +192,24 @@ function desenharCampo(ctx, estado, pal, campo, x, y, l, m) {
   ctx.fill();
   rotulo(ctx, variedade.nome, vx + 13, vy + 1, { tamanho: 10, cor: pal.css('suave'), espaco: 1.6 });
 
+  // Selo de florada na linha da variedade, que é a única livre do cabeçalho.
+  // No canto direito ele batia na coluna de risco.
+  if (emFlor) {
+    const bx = vx + 13 + larguraRotulo(ctx, variedade.nome, 10, 1.6) + 12;
+    const bl = 96;
+    if (bx + bl < x + l - p) {
+      pilula(ctx, bx, vy - 10, bl, 21);
+      ctx.fillStyle = pal.css('cheia');
+      ctx.fill();
+      rotulo(ctx, `florada ${Math.ceil(campo.florada)}s`, bx + bl / 2, vy + 1, {
+        tamanho: 9, cor: pal.css('tinta'), espaco: 1.4, alinhar: 'center',
+      });
+    }
+  }
+
   // Em tela estreita as estatísticas viram uma faixa própria de largura total;
   // em tela larga ficam na metade direita do cabeçalho.
-  const stats = statsDoCampo(campo);
+  const stats = statsComFlorada(campo);
   const valores = [
     [stats.taxa.toFixed(1), '/min', 'taxa de coleta'],
     [`${stats.viagem.toFixed(1)}s`, '', 'viagem'],

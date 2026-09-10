@@ -4,12 +4,14 @@ import { salvar, carregar, apagar } from './core/save.js';
 import { passo } from './sim/tick.js';
 import { desenhar } from './render/cena.js';
 import { iniciarParticulas } from './render/particulas.js';
-import { geometriaFavo } from './render/favo.js';
+import { geometriaFavo, limitarCamera, limitarZoom, ZOOM } from './render/favo.js';
 import { zonaEm } from './ui/zonas.js';
 import {
   comprarCelula, colher, vender, aplicarBoost, alocar, comprarUpgrade,
-  alimentarNinhada, avisar,
+  alimentarNinhada, avisar, recolherTodas,
 } from './sim/acoes.js';
+import { escolherBencao } from './sim/bencaos.js';
+import { fecharDica } from './sim/dicas.js';
 import { dePixel, chave } from './sim/hex.js';
 import { relogio } from './sim/estacoes.js';
 
@@ -23,6 +25,10 @@ const ctx = canvas.getContext('2d');
 const ui = {
   ajudaMelhorias: false, painel: null, rolagemCampos: 0, rolagemMax: 0, ovoSelecionado: null,
   salvoEm: null, saveFalhou: false, confirmandoNovoJogo: false,
+  desafioEscolhido: null,
+  // Vista do jogador sobre o favo. Não é estado de jogo — não vai pro save,
+  // e recomeçar não deve herdar o enquadramento da partida anterior.
+  camera: { x: 0, y: 0, zoom: 1 },
 };
 let L = 0, A = 0;
 
@@ -46,6 +52,7 @@ function redimensionar() {
   canvas.style.width = `${L}px`;
   canvas.style.height = `${A}px`;
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  limitarCamera(ui.camera, L, A);
   iniciarParticulas(L, A);
 }
 window.addEventListener('resize', redimensionar);
@@ -53,22 +60,34 @@ redimensionar();
 
 // ---------------------------------------------------------------- entrada
 
-canvas.addEventListener('pointerdown', (ev) => {
-  ev.preventDefault();
-  arrastando = ui.painel === 'campos' ? { y: ev.clientY, movido: 0 } : null;
-  if (!arrastando) aoTocar(ev.clientX, ev.clientY);
-});
-
-// No painel de campos o toque só vira clique se não tiver virado arrasto —
-// senão rolar a lista dispararia o botão que estava debaixo do dedo.
+// Todo gesto começa igual e só se decide no movimento: parado vira toque, com
+// arrasto vira rolagem (no painel de campos) ou câmera (no resto). Antes o
+// toque disparava já no `pointerdown`, o que impedia qualquer arrasto sobre o
+// favo — e era por isso que a colmeia ficava presa embaixo dos avisos.
 const LIMIAR_ARRASTO = 6;
 let arrastando = null;
 
+canvas.addEventListener('pointerdown', (ev) => {
+  ev.preventDefault();
+  arrastando = {
+    tipo: ui.painel === 'campos' ? 'rolagem' : 'camera',
+    x: ev.clientX, y: ev.clientY, movido: 0,
+  };
+});
+
 canvas.addEventListener('pointermove', (ev) => {
   if (!arrastando) return;
-  const delta = arrastando.y - ev.clientY;
-  arrastando.movido += Math.abs(delta);
-  rolar(delta);
+  const dx = ev.clientX - arrastando.x;
+  const dy = ev.clientY - arrastando.y;
+  arrastando.movido += Math.hypot(dx, dy);
+  if (arrastando.tipo === 'rolagem') {
+    rolar(-dy);
+  } else if (arrastando.movido >= LIMIAR_ARRASTO && podeMoverCamera()) {
+    ui.camera.x += dx;
+    ui.camera.y += dy;
+    limitarCamera(ui.camera, L, A);
+  }
+  arrastando.x = ev.clientX;
   arrastando.y = ev.clientY;
 });
 
@@ -79,11 +98,42 @@ canvas.addEventListener('pointerup', (ev) => {
 
 canvas.addEventListener('pointercancel', () => { arrastando = null; });
 
+// Mover a vista só faz sentido com o favo à mostra: dentro de um painel ou da
+// escolha da primavera o arrasto pertence ao painel.
+function podeMoverCamera() {
+  return !ui.painel && !estado.escolha && !estado.derrota && !estado.vitoria;
+}
+
+// Duplo clique devolve o favo ao centro. É o desfazer do arrasto, e fica no
+// fundo (não sobre uma célula) pra não somar dois toques num hexágono.
+canvas.addEventListener('dblclick', (ev) => {
+  if (!podeMoverCamera()) return;
+  if (zonaEm(ev.clientX, ev.clientY)) return;
+  centralizar();
+});
+
 canvas.addEventListener('wheel', (ev) => {
-  if (ui.painel !== 'campos') return;
+  if (ui.painel === 'campos') {
+    ev.preventDefault();
+    rolar(ev.deltaY);
+    return;
+  }
+  // No PC a roda faz o mesmo que os botões: é o gesto que a pessoa tenta antes
+  // de procurar um botão.
+  if (!podeMoverCamera()) return;
   ev.preventDefault();
-  rolar(ev.deltaY);
+  aproximar(ev.deltaY < 0 ? 1 : -1);
 }, { passive: false });
+
+function aproximar(passos) {
+  ui.camera.zoom = limitarZoom(ui.camera.zoom + ZOOM.passo * passos);
+}
+
+function centralizar() {
+  ui.camera.x = 0;
+  ui.camera.y = 0;
+  ui.camera.zoom = 1;
+}
 
 function rolar(delta) {
   ui.rolagemCampos = Math.min(ui.rolagemMax, Math.max(0, ui.rolagemCampos + delta));
@@ -93,6 +143,13 @@ function aoTocar(x, y) {
   // Fim de partida: qualquer toque recomeça, ganhando ou perdendo.
   if (estado.derrota || estado.vitoria) {
     recomecar();
+    return;
+  }
+  // Escolha da primavera: só as cartas respondem, e o fundo absorve o resto —
+  // senão um toque distraído mexeria no favo com o jogo parado.
+  if (estado.escolha) {
+    const carta = zonaEm(x, y);
+    if (carta?.id === 'bencao:escolher') relatar(escolherBencao(estado, carta.dados.id));
     return;
   }
   const alvo = zonaEm(x, y);
@@ -108,6 +165,24 @@ function aoTocar(x, y) {
 
 function tratarZona(z) {
   switch (z.id) {
+    case 'dica:fechar':
+      fecharDica(estado);
+      break;
+    case 'camera:centrar':
+      centralizar();
+      break;
+    case 'camera:mais':
+      aproximar(1);
+      break;
+    case 'camera:menos':
+      aproximar(-1);
+      break;
+    case 'inverno:recolher':
+      relatar(recolherTodas(estado));
+      break;
+    case 'encomenda:cartao':
+    case 'inverno:cartao':
+      break;                      // absorve o toque dentro do cartão
     case 'vespa:guarda':
       relatar(enviarGuarda(estado));
       break;
@@ -137,6 +212,10 @@ function tratarZona(z) {
       break;
     case 'menu':
       ui.painel = ui.painel === 'menu' ? null : 'menu';
+      ui.confirmandoNovoJogo = false;
+      break;
+    case 'menu:desafio':
+      ui.desafioEscolhido = z.dados.id;
       ui.confirmandoNovoJogo = false;
       break;
     case 'menu:novo':
@@ -193,7 +272,7 @@ function tratarZona(z) {
 // Fora da UI, o toque cai no favo. O hit-test vai de pixel para coordenada
 // axial em vez de testar retângulo por célula — exato e independente do zoom.
 function tratarFavo(x, y) {
-  const { cx, cy, tam } = geometriaFavo(estado, L, A);
+  const { cx, cy, tam } = geometriaFavo(estado, L, A, ui.camera);
   const { q, r } = dePixel(x - cx, y - cy, tam);
   const celula = estado.celulas[chave(q, r)];
   if (!celula) {
@@ -213,7 +292,8 @@ function relatar(resultado) {
 
 function recomecar() {
   apagar();
-  estado = novoJogo();
+  centralizar();
+  estado = novoJogo(undefined, ui.desafioEscolhido ?? undefined);
   ui.painel = null;
   ui.ajudaMelhorias = false;
   ui.confirmandoNovoJogo = false;
@@ -282,3 +362,5 @@ requestAnimationFrame(quadro);
 
 // Ponte para depurar economia no console sem abrir o código.
 window.colmeia = estado;
+// A vista também: enquadramento e painéis abertos moram aqui, não no estado.
+window.colmeiaUi = ui;

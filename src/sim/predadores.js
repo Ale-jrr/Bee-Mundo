@@ -1,4 +1,5 @@
 import { sortear } from '../core/rng.js';
+import { melhorPara } from './talentos.js';
 export const VESPAS = { aviso: 20, guardas: 2, intervaloMin: 100, intervaloMax: 160 };
 export function enviarGuarda(estado) {
   if (!estado.ameaca) return { ok: false, motivo: 'Nenhuma vespa por perto.' };
@@ -6,7 +7,8 @@ export function enviarGuarda(estado) {
   if (guardas.length >= VESPAS.guardas) return { ok: false, motivo: 'A defesa já está completa.' };
   const reservadas = estado.campos.reduce((n,c) => n+c.alocadas+c.polenAlocadas,0);
   const disponiveis = estado.abelhas.filter(a => a.papel === 'operaria' && a.estado !== 'alugada' && !a.guarda);
-  const livre = disponiveis.find(a => a.estado === 'colmeia');
+  // A vaga de guarda é da guardiã, quando há uma em casa.
+  const livre = melhorPara(disponiveis.filter(a => a.estado === 'colmeia'), 'defesa');
   if (!livre || disponiveis.length <= reservadas) return { ok: false, motivo: 'Recolha uma coletora nos campos para defender.' };
   livre.guarda = true;
   livre.trabalho = null;

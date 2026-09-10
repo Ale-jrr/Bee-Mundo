@@ -1,10 +1,15 @@
 import { ovosDaCelula, sincronizarOvos } from '../core/ovos.js';
 import { atualizarPredadores } from './predadores.js';
 import { consumirMel, MEL_REFEICAO_INVERNO } from './alimento.js';
+import { atualizarFloradas, statsComFlorada } from './floradas.js';
+import { atualizarEncomendas } from './encomendas.js';
+import { abrirEscolha, bonusBencao, descontoBencao, fatorDoInverno } from './bencaos.js';
+import { regraDoDesafio, penalidadeDoInverno } from './desafios.js';
+import { fatorColeta, fatorProducao, fatorRisco, melhorPara } from './talentos.js';
 import { relogio, fatorDeColeta, fatorDoFavo } from './estacoes.js';
 import {
   CLIMA, CELULA, ABELHA, NINHADA, ALUGUEL, MERCADO, VARIEDADES, SILO, FEROMONIO,
-  VOO, META, PASSEIO, TRABALHO, saudeDoClima, metaDoAno, statsDoCampo,
+  VOO, META, PASSEIO, TRABALHO, saudeDoClima, metaDoAno,
 } from './economia.js';
 import {
   limitarClima, celulaLivre, celulaParaPostura, celulasArray,
@@ -18,6 +23,9 @@ import { eclodirNinhada } from './acoes.js';
 // Nada aqui pode depender de framerate, de canvas ou de input.
 export function passo(estado, dt) {
   if (estado.derrota || estado.vitoria) return;
+  // A escolha da primavera segura o relógio: é decisão de partida inteira e
+  // não deve ser tomada com as abelhas correndo por cima.
+  if (estado.escolha) return;
 
   estado.decorrido += dt;
   const t = relogio(estado.decorrido);
@@ -26,6 +34,8 @@ export function passo(estado, dt) {
   atualizarTurbo(estado, dt);
   atualizarClima(estado, t, dt);
   atualizarMercado(estado, dt);
+  atualizarFloradas(estado, t, dt);
+  atualizarEncomendas(estado, t, dt);
   atualizarCampos(estado, t, dt);
   atualizarAbelhas(estado, t, dt);
   atualizarAluguel(estado, dt);
@@ -70,7 +80,8 @@ function atualizarClima(estado, t, dt) {
   ).length;
 
   const alvo = {
-    temperatura: temperaturaAlvo(t.estacao.temperatura, naColmeia),
+    temperatura: temperaturaAlvo(t.estacao.temperatura, naColmeia,
+      bonusBencao(estado, 'calor')),
     co2: co2Alvo(t.estacao.co2 * 10, naColmeia),
     umidade: 45 + t.estacao.umidade,
   };
@@ -86,9 +97,10 @@ function atualizarClima(estado, t, dt) {
 // A colônia empurra a temperatura ambiente para dentro da faixa ideal, mas só
 // até onde sua autoridade alcança — nunca além do ideal, nos dois sentidos.
 // Colmeia pequena não vence o inverno; colmeia grande não superaquece no verão.
-export function temperaturaAlvo(ambiente, naColmeia) {
+export function temperaturaAlvo(ambiente, naColmeia, calor = 1) {
   const [minIdeal, maxIdeal] = NINHADA.tempIdeal;
-  const autoridade = Math.min(CLIMA.autoridadeMaxima, naColmeia * CLIMA.grausPorAbelha);
+  const autoridade = Math.min(CLIMA.autoridadeMaxima,
+    naColmeia * CLIMA.grausPorAbelha * calor);
   if (ambiente < minIdeal) return Math.min(minIdeal, ambiente + autoridade);
   if (ambiente > maxIdeal) return Math.max(maxIdeal, ambiente - autoridade);
   return ambiente;
@@ -117,7 +129,7 @@ function atualizarMercado(estado, dt) {
 
 function atualizarCampos(estado, t, dt) {
   for (const campo of estado.campos) {
-    const { nectarMax } = statsDoCampo(campo);
+    const { nectarMax } = statsComFlorada(campo);
     const porSegundo = (nectarMax * t.estacao.rebrota) / 60;
     campo.nectar = Math.min(nectarMax, campo.nectar + porSegundo * dt);
   }
@@ -137,15 +149,16 @@ export function coberturaFeromonio(estado) {
 
 function atualizarAbelhas(estado, t, dt) {
   const rendimento = fatorDeColeta(t.estacao)
+    * fatorDoInverno(estado, t.estacao) * penalidadeDoInverno(estado, t.estacao)
     * (estado.turbo?.multiplicador ?? 1)
-    * (1 + FEROMONIO.poder * coberturaFeromonio(estado));
+    * (1 + FEROMONIO.poder * bonusBencao(estado, 'feromonio') * coberturaFeromonio(estado));
   const perdidas = [];
   let mortasDeFrio = 0;
 
   for (const abelha of estado.abelhas) {
     if (abelha.papel === 'rainha' || abelha.estado === 'alugada') continue;
     const campo = estado.campos.find((c) => c.id === abelha.campo) || null;
-    const stats = campo ? statsDoCampo(campo) : null;
+    const stats = campo ? statsComFlorada(campo) : null;
 
     // O jogador precisa recolher as coletoras antes da virada.
     if (t.estacao.id === 'inverno' && ['indo', 'coletando', 'voltando'].includes(abelha.estado)) {
@@ -161,6 +174,10 @@ function atualizarAbelhas(estado, t, dt) {
           (c) => estado.nivel >= c.nivelMin
             && c.alocadas + c.polenAlocadas > contarNoCampo(estado, c.id),
         );
+        // A vaga é da batedora, se houver uma em casa. O jogador escolhe
+        // **quantas** vão ao campo; qual vai é ofício da colmeia — obrigá-lo a
+        // escalar abelha por abelha seria planilha, não jogo.
+        if (destino && !ehAMelhorParaOCampo(estado, abelha)) break;
         if (destino) {
           // Pólen tem prioridade: basta uma coletora dedicada, mas sem ela a
           // colmeia inteira para de produzir mel.
@@ -175,7 +192,7 @@ function atualizarAbelhas(estado, t, dt) {
         break;
       }
       case 'indo':
-        abelha.t += dt / stats.viagem;
+        abelha.t += dt / viagemDoCampo(estado, stats);
         if (abelha.t >= 1) { abelha.estado = 'coletando'; abelha.t = 0; }
         break;
 
@@ -185,12 +202,12 @@ function atualizarAbelhas(estado, t, dt) {
           // pólen é quantas abelhas você dedica a ele, não o estoque do campo.
           // A taxa acompanha a do campo, então campo melhor e upgrade de OGM
           // valem para os dois recursos.
-          abelha.carga += ((stats.taxa * SILO.fatorPolen) / 60) * rendimento * dt;
+          abelha.carga += ((taxaColeta(estado, stats, abelha) * SILO.fatorPolen) / 60) * rendimento * dt;
           abelha.t = Math.min(1, abelha.carga / ABELHA.cargaBase);
           if (abelha.t >= 1) { abelha.estado = 'voltando'; abelha.t = 0; }
           break;
         }
-        const porSegundo = (stats.taxa / 60) * rendimento;
+        const porSegundo = (taxaColeta(estado, stats, abelha) / 60) * rendimento;
         const colhido = Math.min(porSegundo * dt, campo.nectar);
         campo.nectar -= colhido;
         abelha.carga += colhido;
@@ -199,7 +216,7 @@ function atualizarAbelhas(estado, t, dt) {
         break;
       }
       case 'voltando':
-        abelha.t += dt / stats.viagem;
+        abelha.t += dt / viagemDoCampo(estado, stats);
         if (abelha.t >= 1) {
           // Um único sorteio por volta completa, na chegada. É o único uso
           // do risco: não há eventos de ataque à colmeia.
@@ -208,7 +225,9 @@ function atualizarAbelhas(estado, t, dt) {
           // anunciado como 0% no painel tem que ser 0% o ano todo. Somando, o
           // Bosque das Campainhas matava abelhas no outono apesar de mostrar
           // "0% risco" — e perder 1 das 2 operárias iniciais costuma ser fatal.
-          const risco = stats.risco * (1 + t.estacao.risco);
+          const risco = stats.risco * (1 + t.estacao.risco)
+            * descontoBencao(estado, 'guarda') * regraDoDesafio(estado, 'risco')
+            * fatorRisco(abelha);
           if (risco > 0 && sortear(estado) < risco * VOO.riscoPorViagem) {
             perdidas.push(abelha);
             break;
@@ -218,7 +237,7 @@ function atualizarAbelhas(estado, t, dt) {
           } else {
             depositar(estado, campo.variedade, abelha.carga);
             // Pólen de carona: o bastante pra colmeia nunca parar de fazer mel.
-            guardarPolen(estado, custoDeCura(abelha.carga) * SILO.polenDeCarona);
+            guardarPolen(estado, custoDeCura(estado, abelha.carga) * SILO.polenDeCarona);
           }
           abelha.carga = 0;
           abelha.estado = 'colmeia';
@@ -246,6 +265,26 @@ function atualizarAbelhas(estado, t, dt) {
       expira: estado.decorrido + 4,
     };
   }
+}
+
+// Duração da viagem já com a bênção de vento a favor.
+function viagemDoCampo(estado, stats) {
+  return Math.max(0.5, stats.viagem * descontoBencao(estado, 'viagem'));
+}
+
+// Taxa do campo já com a bênção de coleta. Vive aqui, e não em `economia.js`,
+// porque depende do estado da partida — `economia` guarda constantes.
+function taxaColeta(estado, stats, abelha) {
+  return stats.taxa * bonusBencao(estado, 'coleta') * fatorColeta(abelha);
+}
+
+// A abelha em questão é a melhor candidata em casa para sair a campo? Sem
+// isto, a primeira da lista pegava a vaga e o talento de coleta virava sorte.
+function ehAMelhorParaOCampo(estado, abelha) {
+  const emCasa = estado.abelhas.filter(
+    (a) => a.papel === 'operaria' && a.estado === 'colmeia' && !a.guarda,
+  );
+  return melhorPara(emCasa, 'coleta') === abelha;
 }
 
 function contarNoCampo(estado, id) {
@@ -315,8 +354,9 @@ function atualizarPasseio(estado, dt, estacao) {
       // atrapalha sem descolar do número. A estação vale aqui também.
       const ambiente = abelha.trabalho.tipo === 'cura'
         ? (0.6 + 0.4 * saudeDoClima(estado.clima)) * fatorDoFavo(estacao)
+          * fatorDoInverno(estado, estacao) * penalidadeDoInverno(estado, estacao)
         : 1;
-      abelha.trabalho.resta -= dt * lentidao * ambiente;
+      abelha.trabalho.resta -= dt * lentidao * ambiente * fatorProducao(abelha);
       abelha.t = 1 - Math.max(0, abelha.trabalho.resta) / abelha.trabalho.total;
       if (abelha.trabalho.resta <= 0) {
         concluirTrabalho(estado, abelha);
@@ -334,7 +374,8 @@ function atualizarPasseio(estado, dt, estacao) {
       continue;
     }
 
-    abelha.andar += (dt * lentidao) / PASSEIO.segundosPorCelula;
+    abelha.andar += (dt * lentidao * fatorProducao(abelha))
+      / (PASSEIO.segundosPorCelula * descontoBencao(estado, 'passo'));
     if (abelha.andar < 1) continue;
 
     abelha.de = abelha.para;
@@ -390,8 +431,9 @@ function iniciarTrabalho(estado, abelha) {
   // A célula não precisa estar cheia — mas precisa ter uma carga de néctar,
   // senão a abelha fecharia célula de 1 de néctar e tiraria um pote inteiro
   // dela, que é mel de graça.
-  if (podeCurarCom(abelha, celula)) {
-    abelha.trabalho = { tipo: 'cura', resta: TRABALHO.segundosCurar, total: TRABALHO.segundosCurar };
+  if (podeCurarCom(estado, abelha, celula)) {
+    const curar = TRABALHO.segundosCurar * descontoBencao(estado, 'oficio');
+    abelha.trabalho = { tipo: 'cura', resta: curar, total: curar };
     abelha.t = 0;
     return true;
   }
@@ -404,18 +446,19 @@ function podeCurar(celula) {
 
 // Pólen que a cura de uma dada quantidade de néctar consome. Proporcional à
 // célula cheia, então fechar meia célula custa meio pólen.
-function podeCurarCom(abelha, celula) {
-  return podeCurar(celula) && abelha.polen >= custoDeCura(celula.nectar);
+function podeCurarCom(estado, abelha, celula) {
+  return podeCurar(celula) && abelha.polen >= custoDeCura(estado, celula.nectar);
 }
 
-function custoDeCura(nectar) {
-  return SILO.polenPorMel * (nectar / CELULA.capacidadeNectar);
+function custoDeCura(estado, nectar) {
+  return SILO.polenPorMel * (nectar / CELULA.capacidadeNectar)
+    * descontoBencao(estado, 'polen');
 }
 
 // Néctar + pólen = mel, num passo só. O que rende é o néctar que estava ali:
 // fechar uma célula pela metade dá metade do mel e custa metade do pólen.
 function fazerMel(estado, abelha, celula) {
-  abelha.polen = Math.max(0, abelha.polen - custoDeCura(celula.nectar));
+  abelha.polen = Math.max(0, abelha.polen - custoDeCura(estado, celula.nectar));
   celula.estado = 'madura';
   celula.cura = 0;
   celula.potes = Math.max(1, Math.floor(celula.nectar / ABELHA.cargaBase));
@@ -429,14 +472,16 @@ function concluirTrabalho(estado, abelha) {
   if (!celula) return;
 
   if (tipo === 'comer') {
-    const refeicao = relogio(estado.decorrido).estacao.id === 'inverno'
-      ? MEL_REFEICAO_INVERNO : TRABALHO.melPorRefeicao;
+    // Boca pequena: a mesma refeição custa menos mel do pote.
+    const refeicao = (relogio(estado.decorrido).estacao.id === 'inverno'
+      ? MEL_REFEICAO_INVERNO : TRABALHO.melPorRefeicao)
+      * descontoBencao(estado, 'apetite');
     // O jogador pode vender enquanto a abelha come; sem alimento não sacia.
     const comeu = consumirMel(estado, refeicao);
     abelha.fome = Math.max(0, TRABALHO.segundosEntreRefeicoes * (1 - comeu / refeicao));
   } else if (tipo === 'polen') {
     abelha.polen += consumirPolen(estado, TRABALHO.capacidadePolen - abelha.polen);
-  } else if (tipo === 'cura' && podeCurarCom(abelha, celula)) {
+  } else if (tipo === 'cura' && podeCurarCom(estado, abelha, celula)) {
     // Outra abelha pode ter fechado a célula durante estes 5 s; aí o trabalho
     // se perde sem cobrar pólen, em vez de virar um pote do nada.
     fazerMel(estado, abelha, celula);
@@ -475,7 +520,7 @@ function proximoDestino(estado, abelha, abertas, rainhaQuerPor) {
   }
 
   // Só escolhe mel que consegue pagar; se faltar pólen, completa a bolsa.
-  const cuidar = outras.filter((c) => podeCurarCom(abelha, c));
+  const cuidar = outras.filter((c) => podeCurarCom(estado, abelha, c));
   if (cuidar.length) {
     const maisCheia = cuidar.reduce((m, c) => c.nectar > m.nectar ? c : m, cuidar[0]);
     return chave(maisCheia.q, maisCheia.r);
@@ -536,7 +581,8 @@ function atualizarNinhada(estado, dt) {
   if (ritmo <= 0) return;
   for (const celula of Object.values(estado.celulas)) {
     if (celula.estado !== 'ovo') continue;
-    for (const ovo of ovosDaCelula(celula)) ovo.cura += (dt / NINHADA.segundosEclosao) * ritmo;
+    const eclosao = NINHADA.segundosEclosao * descontoBencao(estado, 'postura');
+    for (const ovo of ovosDaCelula(celula)) ovo.cura += (dt / eclosao) * ritmo;
     sincronizarOvos(celula);
     if (celula.cura >= 1) {
       eclodirNinhada(estado, celula);
@@ -570,5 +616,10 @@ function virarAno(estado, t) {
 
   estado.ano = t.ano;
   estado.vendidoNoAno = 0;
+
+  // Ano novo começa na primavera: é aqui que a colônia escolhe pra onde vai
+  // crescer. Depois da vitória e da derrota de propósito — não faz sentido
+  // escolher rumo numa partida que acabou de terminar.
+  abrirEscolha(estado);
 }
 

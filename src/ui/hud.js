@@ -1,8 +1,9 @@
 import { pilula, retanguloArredondado, rotulo, numero, barra, FONTE } from '../render/desenho.js';
 import { SEGUNDOS_POR_ESTACAO } from '../sim/estacoes.js';
 import { CLIMA, BOOSTS, metaDoAno } from '../sim/economia.js';
+import { campoEmFlorada } from '../sim/floradas.js';
 import { zona } from './zonas.js';
-import { medidas, colunas, areaDoPote } from './layout.js';
+import { medidas, colunas, areaDoPote, areaDoClima, barraSuperior } from './layout.js';
 
 export function desenharHud(ctx, estado, pal, t, L, A, ui = {}) {
   const m = medidas(L, A);
@@ -138,9 +139,9 @@ function desenharBarraSuperior(ctx, estado, pal, t, m) {
   direita -= lVeloc + Math.round(10 * esc);
 
   // O calendário nunca desaparece: em telas estreitas ganha uma linha própria.
-  const sobra = direita - esquerda - Math.round(20 * esc);
-  const separado = sobra < 260;
-  m.faixaEstacaoExtra = separado ? 50 : 0;
+  // A decisão vem do layout, não daqui: o painel de inverno se encaixa abaixo
+  // do clima e precisa da mesma conta antes de qualquer coisa ser desenhada.
+  const { sobra, separado } = barraSuperior(m);
   const fl = separado ? L - margem * 2 : Math.min(360, sobra);
   const fx = separado ? margem : esquerda + (direita - esquerda - fl) / 2;
   const fy = separado ? y + a + 5 : y + 3;
@@ -182,11 +183,8 @@ function desenharClima(ctx, estado, pal, m) {
 
 // Telas largas: painel com barras e faixa ideal visível.
 function climaEmPainel(ctx, estado, pal, m) {
-  const { esc, margem } = m;
-  const x = margem + 10 * esc;
-  const y = margem + m.barra + 22 * esc + (m.faixaEstacaoExtra ?? 0);
-  const l = Math.min(Math.round(350 * esc), m.L * 0.42);
-  const a = Math.round(148 * esc);
+  const { esc } = m;
+  const { x, y, l, a } = areaDoClima(m);
 
   ctx.save();
   ctx.shadowColor = pal.css('sombra', 0.14);
@@ -223,8 +221,7 @@ function climaEmPainel(ctx, estado, pal, m) {
 // Telas estreitas: três pílulas em linha, sem barras. Cabe em 360 px.
 function climaEmPilulas(ctx, estado, pal, m) {
   const { esc, margem, L } = m;
-  const y = margem + m.barra + 8 * esc + (m.faixaEstacaoExtra ?? 0);
-  const a = Math.max(m.toque * 0.78, Math.round(30 * esc));
+  const { y, a } = areaDoClima(m);
   const espaco = 6 * esc;
   const largura = colunas(L - margem * 2, 3, espaco, 60);
   if (!largura) return;
@@ -306,6 +303,21 @@ function desenharAcoes(ctx, estado, pal, m) {
     ctx.textBaseline = 'middle';
     ctx.fillText(item.glifo, x + a / 2, y + a / 2 + 2);
     ctx.restore();
+
+    // Selo pulsante no botão de campos enquanto há florada: a oportunidade
+    // dura 25 s e mora dentro de um painel fechado — sem chamado aqui fora,
+    // passa batida.
+    if (item.id === 'campos' && campoEmFlorada(estado)) {
+      const pulso = 0.6 + 0.4 * Math.sin(performance.now() / 260);
+      const r = a * 0.15;
+      ctx.save();
+      ctx.globalAlpha = pulso;
+      ctx.beginPath();
+      ctx.arc(x + a - r * 0.9, y + r * 0.9, r, 0, Math.PI * 2);
+      ctx.fillStyle = '#e8622c';
+      ctx.fill();
+      ctx.restore();
+    }
     zona(item.id, x, y, a, a);
   });
 }

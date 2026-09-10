@@ -10,6 +10,10 @@ import {
 } from './economia.js';
 import { vizinhos, chave } from './hex.js';
 import { celulasArray, criarAbelha } from '../core/estado.js';
+import { registrarEntrega } from './encomendas.js';
+import { bonusBencao, descontoBencao } from './bencaos.js';
+import { regraDoDesafio } from './desafios.js';
+import { sortearTalento } from './talentos.js';
 
 const falha = (motivo) => ({ ok: false, motivo });
 
@@ -23,7 +27,8 @@ const sucesso = (extra = {}) => ({ ok: true, ...extra });
 
 export function comprarCelula(estado, celula) {
   if (celula.estado !== 'travada') return falha('Essa célula já é sua.');
-  const preco = precoDaCelula(estado.celulasCompradas);
+  const preco = Math.round(precoDaCelula(estado.celulasCompradas)
+    * descontoBencao(estado, 'cera') * regraDoDesafio(estado, 'precoCelula'));
   if (estado.moedas < preco) return falha(`Faltam ${Math.ceil(preco - estado.moedas)} moedas.`);
 
   estado.moedas -= preco;
@@ -66,7 +71,7 @@ export function colher(estado, celula) {
 export function precoDeVenda(estado, variedade, estacao) {
   const base = VARIEDADES[variedade].base;
   const sazonal = 1 + (estacao?.preco ?? 0);
-  return base * sazonal * (estado.mercado[variedade] ?? 1);
+  return base * sazonal * (estado.mercado[variedade] ?? 1) * bonusBencao(estado, 'negocio');
 }
 
 export function vender(estado, variedade, estacao, quantidade = Infinity) {
@@ -82,7 +87,10 @@ export function vender(estado, variedade, estacao, quantidade = Infinity) {
 
   // Vender pressiona o preço pra baixo: despejar o pote inteiro custa margem.
   estado.mercado[variedade] = Math.max(0.55, (estado.mercado[variedade] ?? 1) - 0.035 * n);
-  return sucesso({ n, valor });
+
+  // Entregar encomenda é vender: quem vende não precisa saber que ela existe.
+  const recompensa = registrarEntrega(estado, variedade, n);
+  return sucesso({ n, valor, recompensa });
 }
 
 // Turma do campo. Néctar e pólen dividem os mesmos slots, então subir um
@@ -123,6 +131,32 @@ export function alocar(estado, campoId, tipo, delta) {
     }
   }
   return sucesso();
+}
+
+// Recolhe a colônia inteira dos campos de uma vez. Existe por causa do
+// inverno: sem isso o jogador teria que zerar campo por campo no painel, com o
+// relógio correndo. As que estão no ar **voltam voando**, com a carga que já
+// pegaram — teletransportar seria mais simples, mas aí o "quanto tempo resta
+// para recolher" deixaria de significar alguma coisa.
+export function recolherTodas(estado) {
+  let recolhidas = 0;
+  for (const campo of estado.campos) {
+    recolhidas += campo.alocadas + campo.polenAlocadas;
+    campo.alocadas = 0;
+    campo.polenAlocadas = 0;
+  }
+  let voltando = 0;
+  for (const abelha of estado.abelhas) {
+    if (abelha.estado === 'indo' || abelha.estado === 'coletando') {
+      abelha.estado = 'voltando';
+      abelha.t = 0;
+      voltando++;
+    } else if (abelha.estado === 'voltando') {
+      voltando++;
+    }
+  }
+  if (!recolhidas && !voltando) return falha('Não há ninguém nos campos.');
+  return sucesso({ recolhidas, voltando });
 }
 
 export function comprarUpgrade(estado, campoId, upgradeId) {
@@ -221,7 +255,9 @@ export function ganharXp(estado, quantidade) {
 }
 
 export function nascerAbelha(estado) {
-  const abelha = criarAbelha('operaria', estado.proximoIdAbelha++);
+  // As duas primeiras operárias nascem comuns (em `novoJogo`); daqui pra
+  // frente cada uma sorteia o próprio pendor.
+  const abelha = criarAbelha('operaria', estado.proximoIdAbelha++, sortearTalento(estado));
   estado.abelhas.push(abelha);
   return abelha;
 }

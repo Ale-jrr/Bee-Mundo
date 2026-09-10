@@ -16,7 +16,7 @@ export function desenharNinhada(ctx, estado, pal, L, A, ui = {}) {
   if (!celula || celula.estado !== 'ovo') return;
 
   const m = medidas(L, A);
-  const g = geometriaFavo(estado, L, A);
+  const g = geometriaFavo(estado, L, A, ui.camera);
   const p = centroDaCelula(celula, g.cx, g.cy, g.tam);
 
   const l = Math.min(216, L - m.margem * 2);

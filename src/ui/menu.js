@@ -2,6 +2,7 @@ import { retanguloArredondado, pilula, rotulo, numero } from '../render/desenho.
 import { zona } from './zonas.js';
 import { medidas } from './layout.js';
 import { relogio } from '../sim/estacoes.js';
+import { DESAFIOS, DESAFIO_PADRAO, nomeDoDesafio } from '../sim/desafios.js';
 
 // Menu. Pequeno de propósito: só o que o jogador precisa poder fazer fora do
 // jogo — ver que o progresso está salvo e recomeçar.
@@ -12,7 +13,12 @@ export function desenharMenu(ctx, estado, pal, L, A, ui = {}) {
 
   const m = medidas(L, A);
   const l = Math.min(420, L - m.margem * 2);
-  const a = 300;
+  const ids = Object.keys(DESAFIOS);
+  const alturaChip = 46;
+  const linhasChip = Math.ceil(ids.length / 2);
+  // O bloco de desafios cresce com o catálogo: acrescentar um quinto desafio
+  // não pode empurrar o botão pra fora do cartão.
+  const a = Math.min(A - m.margem * 2, 330 + linhasChip * (alturaChip + 8));
   const x = (L - l) / 2;
   const y = (A - a) / 2;
 
@@ -28,7 +34,7 @@ export function desenharMenu(ctx, estado, pal, L, A, ui = {}) {
     ['ano', String(estado.ano)],
     ['estação', t.estacao.nome],
     ['abelhas', String(estado.abelhas.length)],
-    ['nível', String(estado.nivel)],
+    ['desafio', nomeDoDesafio(estado)],
   ];
   linhas.forEach(([nome, valor], i) => {
     const ly = y + 76 + i * 30;
@@ -38,6 +44,32 @@ export function desenharMenu(ctx, estado, pal, L, A, ui = {}) {
 
   rotulo(ctx, textoDoSave(ui), x + l / 2, y + 208, {
     tamanho: 10, cor: pal.css('suave'), espaco: 1.6, alinhar: 'center',
+  });
+
+  // Desafios: escolhidos antes de recomeçar, não no meio da partida. Trocar a
+  // regra com o jogo em curso invalidaria o ano que o jogador já jogou.
+  const escolhido = ui.desafioEscolhido ?? estado.desafio ?? DESAFIO_PADRAO;
+  rotulo(ctx, 'próxima partida', x + 26, y + 240, {
+    tamanho: 11, cor: pal.css('suave'), espaco: 2.2,
+  });
+
+  const chipL = (l - 52 - 8) / 2;
+  ids.forEach((id, i) => {
+    const cx = x + 26 + (i % 2) * (chipL + 8);
+    const cy = y + 258 + Math.floor(i / 2) * (alturaChip + 8);
+    const ativo = id === escolhido;
+    pilula(ctx, cx, cy, chipL, alturaChip);
+    ctx.fillStyle = ativo ? pal.css('cheia') : pal.css('escuro', 0.08);
+    ctx.fill();
+    rotulo(ctx, DESAFIOS[id].nome, cx + chipL / 2, cy + 17, {
+      tamanho: 10, cor: ativo ? pal.css('tinta') : pal.css('suave'),
+      espaco: 1.4, alinhar: 'center',
+    });
+    rotulo(ctx, DESAFIOS[id].resumo, cx + chipL / 2, cy + 32, {
+      tamanho: 8, cor: ativo ? pal.css('tinta') : pal.css('suave'),
+      espaco: 1, alinhar: 'center',
+    });
+    zona('menu:desafio', cx, cy, chipL, alturaChip, { id });
   });
 
   // Recomeçar apaga o save, então pede confirmação em dois toques em vez de

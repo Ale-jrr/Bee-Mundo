@@ -1,6 +1,7 @@
 import { criarRng } from './rng.js';
 import { chave, espiral } from '../sim/hex.js';
 import { CLIMA, VARIEDADES, CELULA, SILO, CAMPOS, NINHADA } from '../sim/economia.js';
+import { DESAFIO_PADRAO, DESAFIOS } from '../sim/desafios.js';
 
 // 2: as abelhas passaram a fazer o mel (antes a célula curava sozinha), ganharam
 // passeio, trabalho e fome.
@@ -11,8 +12,9 @@ export const VERSAO_SAVE = 3;
 
 // O estado é 100% serializável: nada de funções, nada de referências ao DOM.
 // `sim/` só transforma este objeto; `render/` só lê.
-export function novoJogo(semente = Date.now() & 0xffffffff) {
+export function novoJogo(semente = Date.now() & 0xffffffff, desafio = DESAFIO_PADRAO) {
   const rng = criarRng(semente);
+  const modo = DESAFIOS[desafio] ? desafio : DESAFIO_PADRAO;
 
   const celulas = {};
   // Centro + primeiro anel. O centro é da rainha; três vizinhas já vêm abertas.
@@ -35,6 +37,7 @@ export function novoJogo(semente = Date.now() & 0xffffffff) {
   return {
     versao: VERSAO_SAVE,
     semente,
+    desafio: modo,          // modificador de partida escolhido no menu
     rngEstado: rng.semente,
 
     decorrido: 0,          // segundos de jogo — a única fonte de tempo
@@ -81,9 +84,18 @@ export function novoJogo(semente = Date.now() & 0xffffffff) {
     historico: [],           // um registro por ano encerrado
     aviso: null,             // { texto, expira } — feedback efêmero na tela
 
+    proximaFlorada: null,      // armado no primeiro passo da simulação
+    encomenda: null,           // { variedade, quantidade, entregue, vence, recompensa }
+    proximaEncomenda: null,
+    dica: null,                // id da dica de primeira vez em exibição
+    dicasVistas: {},           // id -> quantas vezes já apareceu
+    bencaos: {},               // id da bênção -> nível escolhido
+    escolha: null,             // { opcoes: [id, id, id] } enquanto o jogador decide
+
     campos: CAMPOS.map((c) => ({
       ...c,
       nectar: c.nectarMax,
+      florada: 0,              // segundos restantes de florada neste campo
       alocadas: c.alocadasInicial,
       polenAlocadas: c.polenInicial,
       upgrades: { sustentavel: 0, rota: 0, ogm: 0 },
@@ -94,10 +106,11 @@ export function novoJogo(semente = Date.now() & 0xffffffff) {
 // O id vem de fora (`estado.proximoIdAbelha`) em vez de um contador de módulo:
 // um contador de módulo reiniciaria em 1 ao carregar um save e colidiria com
 // as abelhas já existentes.
-export function criarAbelha(papel, id) {
+export function criarAbelha(papel, id, talento = null) {
   return {
     id,
     papel,                       // 'rainha' | 'operaria'
+    talento,                     // 'coleta' | 'producao' | 'defesa' | null
     estado: papel === 'rainha' ? 'rainha' : 'colmeia',
     campo: null,
     recurso: 'nectar',           // 'nectar' | 'polen' — o que esta viagem busca

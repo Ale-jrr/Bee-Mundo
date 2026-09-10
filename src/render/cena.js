@@ -4,6 +4,7 @@ import { relogio } from '../sim/estacoes.js';
 import { paletaAtual } from './paleta.js';
 import { desenharFavo, desenharAbelha, centroDaCelula, geometriaFavo } from './favo.js';
 import { desenharParticulas } from './particulas.js';
+import { desenharOrnamentos } from './ornamentos.js';
 import { retanguloArredondado, rotulo } from './desenho.js';
 import { desenharHud } from '../ui/hud.js';
 import { desenharRax } from '../ui/rax.js';
@@ -11,6 +12,11 @@ import { desenharDerrota, desenharVitoria } from '../ui/fim.js';
 import { desenharCampos } from '../ui/campos.js';
 import { desenharMenu } from '../ui/menu.js';
 import { desenharNinhada } from '../ui/ninhada.js';
+import { desenharInverno } from '../ui/inverno.js';
+import { desenharEncomenda } from '../ui/encomenda.js';
+import { desenharEscolha } from '../ui/bencaos.js';
+import { desenharCamera } from '../ui/camera.js';
+import { desenharDica } from '../ui/dicas.js';
 import { limparZonas } from '../ui/zonas.js';
 import { medidas, areaDoPote } from '../ui/layout.js';
 
@@ -28,12 +34,18 @@ export function desenhar(ctx, estado, L, A, dt, ui = {}) {
 
   desenharParticulas(ctx, pal, t, L, A, dt);
 
-  const { cx, cy, tam } = geometriaFavo(estado, L, A);
+  const { cx, cy, tam } = geometriaFavo(estado, L, A, ui.camera);
+  // Enfeites atrás do favo: crescem com o que o jogador conquistou.
+  desenharOrnamentos(ctx, estado, pal, cx, cy, tam);
   desenharFavo(ctx, estado, pal, cx, cy, tam);
   desenharAbelhas(ctx, estado, pal, cx, cy, tam, L, A);
   desenharAbelhasNoCampo(ctx, estado, pal, cx, cy, tam, L, A);
   desenharHud(ctx, estado, pal, t, L, A, ui);
+  const rodapeInverno = desenharInverno(ctx, estado, pal, L, A);
+  desenharEncomenda(ctx, estado, pal, L, A, rodapeInverno);
   desenharNinhada(ctx, estado, pal, L, A, ui);
+  desenharCamera(ctx, pal, L, A, ui);
+  desenharDica(ctx, estado, pal, L, A, ui);
   desenharAviso(ctx, estado, pal, L, A);
   desenharPredador(ctx, estado, pal, L, A);
 
@@ -41,6 +53,9 @@ export function desenhar(ctx, estado, L, A, dt, ui = {}) {
   if (ui.painel === 'campos') desenharCampos(ctx, estado, pal, t, L, A, ui);
   if (ui.painel === 'menu') desenharMenu(ctx, estado, pal, L, A, ui);
   if (ui.ajudaMelhorias) desenharAjuda(ctx, pal, L, A, ui.ajudaMelhorias);
+  // Depois dos painéis e antes do fim de partida: a escolha da primavera é
+  // modal e precisa capturar o toque de qualquer coisa que esteja aberta.
+  desenharEscolha(ctx, estado, pal, L, A);
   if (estado.derrota) desenharDerrota(ctx, estado, pal, L, A);
   if (estado.vitoria) desenharVitoria(ctx, estado, pal, L, A);
 
@@ -72,7 +87,7 @@ function desenharAbelhasNoCampo(ctx, estado, pal, cx, cy, tam, L, A) {
 
     ctx.save();
     ctx.globalAlpha = 1 - 0.45 * f;
-    desenharAbelha(ctx, x, y, escala, pal, false, null);
+    desenharAbelha(ctx, x, y, escala, pal, false, null, abelha.talento);
     ctx.restore();
   }
 }
@@ -130,11 +145,11 @@ function desenharAbelhas(ctx, estado, pal, cx, cy, tam, L, A) {
       const volta = Math.max(0, (abelha.t - 0.7) / 0.3);
       const f = suave(ida) - suave(volta);
       desenharAbelha(ctx, x + (alvo.x - x) * f, y + (alvo.y - y) * f,
-        tam / 90, pal, abelha.papel === 'rainha', progresso);
+        tam / 90, pal, abelha.papel === 'rainha', progresso, abelha.talento);
       continue;
     }
 
     desenharAbelha(ctx, x, y - voo + flutua, tam / 90, pal,
-      abelha.papel === 'rainha', progresso);
+      abelha.papel === 'rainha', progresso, abelha.talento);
   }
 }
