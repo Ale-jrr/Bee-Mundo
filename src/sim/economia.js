@@ -289,14 +289,39 @@ export function statsDoCampo(campo) {
     viagem: campo.viagem * Math.pow(1 + UPGRADES.rota.ganho, u.rota),
     nectarMax: campo.nectarMax * (1 + UPGRADES.sustentavel.ganho * u.sustentavel),
     risco: campo.risco,
-    vagas: vagasDoCampo(campo),
   };
+}
+
+// Vagas de campo. A base de cada campo e o Posto Avançado são fixos, mas o
+// **favo também conta**: a cada `VAGAS.porCelulas` células abertas, todo campo
+// liberado ganha uma vaga.
+//
+// Sem essa parte a produção tinha teto duro de 34 vagas enquanto a colônia
+// chegava a 90 operárias — 74 abelhas sem trabalho no campo, produção plana a
+// partir do Ano 5, e a meta compondo a 1,78×/ano contra um teto fixo. Existia
+// um ano em que uma cruzava a outra, e qual ano não dependia de habilidade
+// nenhuma: perder era aritmética, não erro do jogador.
+//
+// Com o favo contando, comprar célula e criar abelha voltam a pagar em
+// produção — que é o que dá finalidade aos anos do meio.
+export const VAGAS = { porCelulas: 6 };
+
+// Quantas vagas o tamanho do favo acrescenta a **cada** campo liberado.
+// Conta as células aqui em vez de importar `celulasArray` porque
+// `core/estado.js` importa este arquivo: a importação de volta fecharia ciclo.
+export function vagasDoFavo(estado) {
+  if (!estado?.celulas) return 0;
+  let abertas = 0;
+  for (const c of Object.values(estado.celulas)) if (c.estado !== 'travada') abertas++;
+  return Math.floor(abertas / VAGAS.porCelulas);
 }
 
 // Vagas efetivas do campo. Fica separado porque a interface e a alocação
 // precisam dela sem calcular o resto.
-export function vagasDoCampo(campo) {
-  return campo.slots + UPGRADES.posto.ganho * (campo.upgrades?.posto ?? 0);
+export function vagasDoCampo(campo, estado = null) {
+  return campo.slots
+    + UPGRADES.posto.ganho * (campo.upgrades?.posto ?? 0)
+    + vagasDoFavo(estado);
 }
 
 // O nível precisa destravar o Treval (3) por volta do Ano 2 e o Vale (7) por

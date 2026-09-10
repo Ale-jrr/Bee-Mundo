@@ -1038,3 +1038,57 @@ se perde por aritmética.**
 > Limitação conhecida da régua: o robô gasta as moedas em células antes de
 > chegar aos Postos, e termina com 19 das 34 vagas possíveis. Isso o deixa
 > abaixo do teto — mas o argumento acima usa o teto, não o que ele alcançou.
+
+## Parte 1: as vagas passam a crescer com o favo
+
+`VAGAS.porCelulas = 6` — a cada seis células abertas, **todo campo liberado**
+ganha uma vaga. Só isso.
+
+Como os campos abrem por nível (1, 3, 5 e 7), a regra quase não toca no começo
+e só pesa quando o jogador já construiu favo.
+
+### O que aconteceu (mesmas 6 sementes, mesmo robô)
+
+| | antes | depois |
+| --- | --- | --- |
+| vitórias | 2/6 | **6/6** |
+| vagas no fim | 19 (teto 34) | **46** |
+| operárias ociosas | 74 | 47 |
+| produção do Ano 9 | 937 | 1487 |
+
+Produção ano a ano (semente 42):
+
+| ano | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| antes | 53 | 123 | 417 | 584 | 751 | 691 | 613 | 1034 | 937 |
+| depois | 53 | 123 | 314 | 231 | 670 | 1182 | **1899** | 1601 | 1487 |
+
+O que interessa não é o total: é que antes a produção **planava a partir do
+Ano 5** e agora ela **composta até o Ano 7**. O teto de aritmética sumiu, e
+crescer voltou a pagar.
+
+### O que a parte 1 não resolve
+
+Folga sobre a meta, média das seis sementes:
+
+| ano | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| folga | 5,8 | 7,3 | 11,7 | 7,1 | 7,9 | 7,5 | 5,4 | 3,3 | **2,0** |
+
+O muro foi embora — e junto foi a tensão. **6 de 6 é fácil demais**, e nenhum
+ano chega perto de apertar. Era esperado: a parte 1 tirou o teto, a parte 2 é
+que ajusta a exigência.
+
+## Parte 2 (pendente): a curva da meta
+
+Com a produção medida, dá para ajustar em vez de chutar. Mirando folga ~1,6:
+
+| | hoje | proposto |
+| --- | --- | --- |
+| `META.valorBase` | 9 | ~33 |
+| `META.crescimento` | 1,78 | ~1,52 |
+
+Isso põe o Ano 1 e o Ano 9 os dois perto de 1,6. O meio (Anos 3 a 6) ainda
+ficaria frouxo, porque a produção é irregular ali — uma progressão geométrica
+não acompanha uma curva com barriga. Se depois de medir o meio continuar
+solto, o ajuste é na produção do meio, não na meta.

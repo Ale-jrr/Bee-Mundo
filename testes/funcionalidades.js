@@ -23,7 +23,7 @@ import { FORMIGAS, vedarEntrada, formigasAtacando } from '../src/sim/formigas.js
 import {
   RAINHA, vigorDaRainha, intervaloDePostura, emInterregno, idadeDaRainha,
 } from '../src/sim/rainha.js';
-import { ALUGUEL, MISTURA, vagasDoCampo, UPGRADES, CAMPOS } from '../src/sim/economia.js';
+import { ALUGUEL, MISTURA, vagasDoCampo, vagasDoFavo, VAGAS, UPGRADES, CAMPOS } from '../src/sim/economia.js';
 import { SEGUNDOS_POR_ANO } from '../src/sim/estacoes.js';
 import * as K from '../src/core/conquistas.js';
 import { estaMinimizado, alternarMinimizado, recuoDoBotao } from '../src/ui/cartao.js';
@@ -641,12 +641,32 @@ export async function rodar() {
 
   // ------------------------------------------------- 12. vagas de campo
 
-  const campo12 = novoJogo(42).campos[0];
-  const vagasBase = vagasDoCampo(campo12);
-  ok('vagas partem do catálogo', vagasBase === campo12.slots);
+  const jogo12 = novoJogo(42);
+  const campo12 = jogo12.campos[0];
+  const vagasBase = vagasDoCampo(campo12, jogo12);
+  ok('vagas partem do catálogo', vagasBase === campo12.slots + vagasDoFavo(jogo12));
   campo12.upgrades.posto = 2;
   ok('cada posto abre uma vaga',
-    vagasDoCampo(campo12) === vagasBase + 2 * UPGRADES.posto.ganho);
+    vagasDoCampo(campo12, jogo12) === vagasBase + 2 * UPGRADES.posto.ganho);
+
+  // O favo também abre vaga: sem isso a produção tinha teto fixo de 34 vagas
+  // enquanto a colônia chegava a 90 operárias.
+  const favoGrande = novoJogo(42);
+  const antesDoFavo = vagasDoCampo(favoGrande.campos[0], favoGrande);
+  let abertasNoTeste = 0;
+  while (abertasNoTeste < VAGAS.porCelulas) {
+    const t = celulasArray(favoGrande).find((c) => c.estado === 'travada');
+    if (!t) break;
+    A.liberarCelula(favoGrande, t);
+    abertasNoTeste++;
+  }
+  ok('cada punhado de células abre uma vaga em cada campo',
+    vagasDoCampo(favoGrande.campos[0], favoGrande) === antesDoFavo + 1,
+    `${antesDoFavo} -> ${vagasDoCampo(favoGrande.campos[0], favoGrande)}`);
+  ok('e vale para todos os campos, não só o primeiro',
+    favoGrande.campos.every((c) => vagasDoCampo(c, favoGrande) === c.slots + vagasDoFavo(favoGrande)));
+  ok('sem estado a conta cai na base, sem quebrar',
+    vagasDoCampo(favoGrande.campos[0]) === favoGrande.campos[0].slots);
 
   const escalado = novoJogo(42);
   escalado.moedas = 1e6;
@@ -654,8 +674,8 @@ export async function rodar() {
   escalado.campos[0].alocadas = 0;
   let coube = 0;
   while (A.alocar(escalado, 'campainhas', 'nectar', 1).ok) coube++;
-  ok('a alocação respeita as vagas', coube === vagasDoCampo(escalado.campos[0]),
-    `${coube} de ${vagasDoCampo(escalado.campos[0])}`);
+  ok('a alocação respeita as vagas', coube === vagasDoCampo(escalado.campos[0], escalado),
+    `${coube} de ${vagasDoCampo(escalado.campos[0], escalado)}`);
   A.comprarUpgrade(escalado, 'campainhas', 'posto');
   ok('e o posto abre lugar na hora', A.alocar(escalado, 'campainhas', 'nectar', 1).ok === true);
 

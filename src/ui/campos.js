@@ -245,7 +245,7 @@ function desenharCampo(ctx, estado, pal, campo, x, y, l, m) {
   desenharTurma(ctx, pal, campo, 'nectar', x + p, turmaY, l - p * 2, m);
   desenharTurma(ctx, pal, campo, 'polen', x + p, turmaY + 44, l - p * 2, m);
 
-  const livres = vagasDoCampo(campo) - campo.alocadas - campo.polenAlocadas;
+  const livres = vagasDoCampo(campo, estado) - campo.alocadas - campo.polenAlocadas;
   rotulo(ctx, livres === 1 ? '1 vaga livre' : `${livres} vagas livres`, x + p, turmaY + 94, {
     tamanho: 10, cor: pal.css('suave'), espaco: 1.8,
   });
@@ -275,7 +275,7 @@ function desenharTurma(ctx, pal, campo, tipo, x, y, largura, m) {
   );
   const bx = x + lRotulo + botao + (m.compacto ? 10 : 16);
   const disponivel = Math.min(x + largura, bx + (m.compacto ? largura : 340)) - bx - botao * 4 - 20;
-  const vagas = vagasDoCampo(campo);
+  const vagas = vagasDoCampo(campo, estado);
   const passo = Math.max(18, Math.min(30, disponivel / vagas));
   const raio = Math.max(7, Math.min(11, passo * 0.37));
 

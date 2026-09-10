@@ -117,7 +117,7 @@ function vender_(estado, t, cfg) {
 function melhorCampo(estado) {
   return estado.campos
     .filter((c) => estado.nivel >= c.nivelMin)
-    .filter((c) => c.alocadas + c.polenAlocadas < vagasDoCampo(c))
+    .filter((c) => c.alocadas + c.polenAlocadas < vagasDoCampo(c, estado))
     .map((c) => ({ c, valor: (c.taxa / Math.max(1, c.viagem)) * (1 - (c.risco ?? 0)) }))
     .sort((a, b) => b.valor - a.valor)[0]?.c ?? null;
 }

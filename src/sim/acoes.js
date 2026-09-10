@@ -132,7 +132,7 @@ export function alocar(estado, campoId, tipo, delta) {
   if (alvo < 0) return falha('Já está em zero.');
 
   const outro = tipo === 'polen' ? campo.alocadas : campo.polenAlocadas;
-  if (alvo + outro > vagasDoCampo(campo)) return falha('Não há vaga livre neste campo.');
+  if (alvo + outro > vagasDoCampo(campo, estado)) return falha('Não há vaga livre neste campo.');
 
   // Mandar todas pro campo é permitido — e para a produção, porque ninguém
   // fica dentro pra transformar néctar em mel. É escolha do jogador.
