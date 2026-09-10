@@ -615,3 +615,59 @@ valem por si:
 Há teste travando a ordem de desenho: ele lê `render/cena.js` e verifica que
 `desenharInicio` aparece depois de `desenharDerrota` e `desenharVitoria`.
 
+### 9.19 Tutorial guiado — `sim/tutorial.js`, `ui/tutorial.js`
+
+Quem chegava sem conhecer o jogo não entendia o que estava vendo. O botão
+**tutorial · aprender jogando**, na tela de início, começa uma partida normal
+com um roteiro de **12 passos** por cima dela.
+
+Não é um texto que se fecha e esquece. Cada passo pede **uma** coisa e só sai
+da frente quando ela acontece:
+
+| tipo | como avança |
+| --- | --- |
+| `leitura` | explica e espera o toque em **entendi** |
+| `acao` | pede algo e espera acontecer — `concluido(estado, ui, marca)` decide |
+
+O roteiro: boas-vindas → abrir os campos → mandar uma coletora → ver o néctar
+chegar → por que néctar não é mel (o silo de pólen) → esperar o mel → colher →
+vender → a meta do ano → o inverno → o sino → fim. No fim `estado.tutorial`
+vira `null` e **a mesma partida continua** — não existe "modo tutorial" para
+depois recomeçar do zero.
+
+Detalhes que o roteiro exigiu:
+
+- **`comecarTutorial` zera as turmas dos campos.** O passo pede que o jogador
+  mande a primeira coletora; se ela já estivesse escalada, o passo estaria
+  cumprido antes de ser lido.
+- **`marca`** guarda um valor tirado no início do passo para comparar depois.
+  `colher` usa isso: guarda o mel no vidro e espera ele subir — mais confiável
+  que procurar a célula que sumiu.
+- **`avancarTutorial` é chamado do laço de `main.js`, não do `passo()`.** Alguns
+  passos olham se um painel está aberto, e `sim/` não conhece a interface.
+- **O cartão é desenhado por último, acima de qualquer painel** — o passo
+  costuma mandar abrir um painel, então a instrução não pode sumir atrás dele.
+  Fica abaixo só da tela de início (§ 9.18).
+- **Passo de ação não tem botão de avançar**, e no lugar dele fica
+  *pular tutorial*: ninguém pode ficar preso.
+- O tutorial **sobrevive ao save**: recarregar no meio não perde o lugar.
+
+Tempo do roteiro inteiro, medido com um jogador ideal: **23 a 26 s** de jogo
+(sementes 42, 7 e 123).
+
+#### O alerta de "todas foram pro campo"
+
+A colônia começa com a rainha e **duas** operárias. Mandar as duas para o campo
+é permitido de propósito (ver o comentário em `alocar`, `sim/acoes.js`): sem
+ninguém dentro, o néctar empilha e nada vira mel — é escolha do jogador.
+
+Só que quem está no tutorial toca o `+` duas vezes **sem saber disso**, e o
+passo *espere o mel* fica parado. Medido: com 1 coletora o primeiro mel sai em
+**22,8 s**; com 2, em **146,4 s** — e a tela não diz por quê.
+
+Por isso um passo pode ter `alerta(estado)`, que devolve linhas desenhadas em
+vermelho dentro do cartão. O de *espere o mel* dispara quando todas as
+operárias estão reservadas para campos e manda tirar uma do néctar.
+
+> A regra do jogo não mudou — só deixou de ser invisível para quem está
+> aprendendo.

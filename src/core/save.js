@@ -70,6 +70,7 @@ export function serializar(estado) {
     tempo: estado.tempo ?? null,
     proximoTempo: estado.proximoTempo ?? null,
     enxame: estado.enxame ?? null,
+    tutorial: estado.tutorial ?? null,
     dica: estado.dica ?? null,
     dicasVistas: estado.dicasVistas ?? {},
     bencaos: estado.bencaos ?? {},
@@ -91,7 +92,7 @@ export function desserializar(dados) {
     'rngEstado', 'decorrido', 'velocidade', 'ano', 'vendidoNoAno', 'moedas',
     'nivel', 'xp', 'celulasCompradas', 'proximaPostura', 'proximoIdAbelha',
     'derrota', 'vitoria', 'turbo', 'consumoDeMel', 'proximaFlorada',
-    'encomenda', 'proximaEncomenda', 'escolha', 'dica', 'enxame',
+    'encomenda', 'proximaEncomenda', 'escolha', 'dica', 'enxame', 'tutorial',
     'tempo', 'proximoTempo', 'rainhaDesde', 'interregno',
     'formigas', 'proximaFormiga', 'ultimoEvento', 'ameaca', 'proximoAtaque',
   ]) {

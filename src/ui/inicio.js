@@ -35,6 +35,7 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
   const a = pad + Math.round(96 * m.esc)              // marca
     + (podeContinuar ? hBotao + gap : 0)
     + hBotao + gap
+    + hBotao + gap                                   // tutorial
     + Math.round(22 * m.esc) + alturaDosChips()       // desafios
     + gap + Math.round(34 * m.esc)                    // som
     + Math.round(26 * m.esc) + pad;                   // rodapé
@@ -73,6 +74,17 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
       tamanho: Math.max(11, 13 * m.esc), cor: pal.css('tinta'), espaco: 2.4, alinhar: 'center',
     });
   zona('inicio:novo', x + pad, cursor, l - pad * 2, hBotao);
+  cursor += hBotao + gap;
+
+  // O tutorial vem logo abaixo de começar: quem chega sem saber precisa
+  // encontrá-lo antes de decidir qualquer outra coisa.
+  pilula(ctx, x + pad, cursor, l - pad * 2, hBotao);
+  ctx.fillStyle = pal.css('escuro', 0.08);
+  ctx.fill();
+  rotulo(ctx, 'tutorial · aprender jogando', x + l / 2, cursor + hBotao / 2, {
+    tamanho: Math.max(10, 12 * m.esc), cor: pal.css('tinta'), espaco: 2, alinhar: 'center',
+  });
+  zona('inicio:tutorial', x + pad, cursor, l - pad * 2, hBotao);
   cursor += hBotao + gap;
 
   rotulo(ctx, 'desafio da próxima partida', x + pad, cursor + Math.round(10 * m.esc), {

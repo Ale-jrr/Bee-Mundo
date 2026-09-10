@@ -14,6 +14,7 @@ import { desenharMenu } from '../ui/menu.js';
 import { desenharHistorico } from '../ui/historico.js';
 import { desenharRainha } from '../ui/rainha.js';
 import { desenharInicio } from '../ui/inicio.js';
+import { desenharTutorial } from '../ui/tutorial.js';
 import { desenharNinhada } from '../ui/ninhada.js';
 import { desenharInverno } from '../ui/inverno.js';
 import { desenharEncomenda } from '../ui/encomenda.js';
@@ -89,6 +90,9 @@ export function desenhar(ctx, estado, L, A, dt, ui = {}) {
   // desenhada antes, ela ficava escondida atrás da tela de derrota, que ainda
   // por cima registra uma zona de tela inteira — o jogador via "não
   // sobreviveu", tocava, e nada acontecia.
+  // O tutorial fica acima de qualquer painel — o passo costuma mandar abrir um
+  // — mas abaixo da tela de início, que é a única sempre por cima.
+  if (ui.tela === 'jogo') desenharTutorial(ctx, estado, pal, L, A, ui);
   if (ui.tela === 'inicio') desenharInicio(ctx, estado, pal, L, A, ui);
 
   return { t, pal, cx, cy };

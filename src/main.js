@@ -19,6 +19,9 @@ import { acordarSom, atualizarSom, tocar, alternarMudo, pausarSom } from './rend
 import { alternarMinimizado } from './ui/cartao.js';
 import { avisosAtivos } from './sim/avisos.js';
 import { DESAFIO_PADRAO } from './sim/desafios.js';
+import {
+  comecarTutorial, pularTutorial, confirmarPasso, avancarTutorial,
+} from './sim/tutorial.js';
 import { dePixel, chave } from './sim/hex.js';
 import { relogio } from './sim/estacoes.js';
 
@@ -208,6 +211,11 @@ function tratarInicio(z) {
       recomecar();
       ui.tela = 'jogo';
       break;
+    case 'inicio:tutorial':
+      recomecar();
+      comecarTutorial(estado);
+      ui.tela = 'jogo';
+      break;
     case 'inicio:desafio':
       ui.desafioEscolhido = z.dados.id;
       break;
@@ -224,6 +232,14 @@ function tratarZona(z) {
     case 'dica:fechar':
       fecharDica(estado);
       break;
+    case 'tutorial:entendi':
+      confirmarPasso(estado);
+      break;
+    case 'tutorial:pular':
+      pularTutorial(estado);
+      break;
+    case 'tutorial:cartao':
+      break;                      // absorve o toque dentro do cartão
     case 'camera:centrar':
       centralizar();
       break;
@@ -479,6 +495,10 @@ function quadro(agora) {
       passo(estado, TICK);
       acumulado -= TICK;
     }
+
+    // O tutorial avança de fora da simulação: ele precisa saber se um painel
+    // está aberto, e `sim/` não conhece a interface.
+    avancarTutorial(estado, ui);
 
     // Conquistas sobrevivem ao recomeço, então são gravadas fora do save.
     if (estado.vitoria && !vitoriaRegistrada) {

@@ -97,6 +97,7 @@ export function novoJogo(semente = Date.now() & 0xffffffff, desafio = DESAFIO_PA
     tempo: null,               // { tipo, resta } — chuva ou seca em curso
     proximoTempo: null,
     enxame: null,              // { resta } enquanto a colmeia ameaça enxamear
+    tutorial: null,            // { passo, marca } durante o tutorial guiado
     dica: null,                // id da dica de primeira vez em exibição
     dicasVistas: {},           // id -> quantas vezes já apareceu
     bencaos: {},               // id da bênção -> nível escolhido

@@ -30,6 +30,9 @@ import { avisosAtivos, avisosNovos, temUrgente } from '../src/sim/avisos.js';
 import { desenharChips, alturaDosChips } from '../src/ui/desafios.js';
 import { DESAFIOS } from '../src/sim/desafios.js';
 import { EVENTOS, tentarEvento, segundosDesdeOUltimoEvento } from '../src/sim/eventos.js';
+import {
+  PASSOS, tutorialAtivo, comecarTutorial, pularTutorial, confirmarPasso, avancarTutorial,
+} from '../src/sim/tutorial.js';
 import * as S from '../src/core/save.js';
 import { DESAFIO_PADRAO, regraDoDesafio, penalidadeDoInverno } from '../src/sim/desafios.js';
 import {
@@ -950,6 +953,100 @@ export async function rodar() {
     fonteMain.indexOf('function tratarZona'));
   ok('a tela de início trata a zona da derrota',
     tratador.includes("'derrota:reiniciar'") && tratador.includes("'vitoria:reiniciar'"));
+
+  // ------------------------------------------------- 26. tutorial guiado
+
+  const semTutorial = novoJogo(42);
+  ok('jogo normal não tem tutorial', tutorialAtivo(semTutorial) === null);
+
+  const aprendiz2 = novoJogo(42);
+  comecarTutorial(aprendiz2);
+  ok('o tutorial começa no primeiro passo', tutorialAtivo(aprendiz2)?.indice === 0);
+  ok('e zera as turmas', aprendiz2.campos.every((c) => c.alocadas === 0),
+    'senão o passo de mandar a coletora já nasceria cumprido');
+
+  // Passo de leitura só anda no "entendi"; passo de ação, só quando é feito.
+  const primeiro = tutorialAtivo(aprendiz2);
+  ok('o primeiro passo é leitura', primeiro.tipo === 'leitura');
+  ok('ação não avança passo de leitura', avancarTutorial(aprendiz2, {}) === false);
+  ok('entendi avança', confirmarPasso(aprendiz2) === true);
+
+  const segundo = tutorialAtivo(aprendiz2);
+  ok('o segundo passo é ação', segundo.tipo === 'acao');
+  ok('entendi não avança passo de ação', confirmarPasso(aprendiz2) === false);
+  ok('e ele espera a ação', avancarTutorial(aprendiz2, { painel: null }) === false);
+  ok('cumprida a ação, avança', avancarTutorial(aprendiz2, { painel: 'campos' }) === true);
+
+  // Todo passo tem o que precisa para ser desenhado e resolvido.
+  for (const p of PASSOS) {
+    const completo = p.id && p.titulo && Array.isArray(p.linhas) && p.linhas.length
+      && (p.tipo === 'leitura' || typeof p.concluido === 'function');
+    ok(`o passo ${p.id} está completo`, Boolean(completo));
+  }
+
+  // Pular sai de vez.
+  const pulador = novoJogo(42);
+  comecarTutorial(pulador);
+  pularTutorial(pulador);
+  ok('pular encerra o tutorial', tutorialAtivo(pulador) === null);
+
+  // O tutorial inteiro se resolve e devolve uma partida normal — sem travar em
+  // nenhum passo, que é o risco de um roteiro com pré-condições.
+  const guiado = novoJogo(42);
+  comecarTutorial(guiado);
+  const visitados = [];
+  let voltas = 0;
+  while (tutorialAtivo(guiado) && voltas++ < 40) {
+    const p = tutorialAtivo(guiado);
+    visitados.push(p.id);
+    if (p.tipo === 'leitura') { confirmarPasso(guiado); continue; }
+    const antes = p.id;
+    // O jogador age quando lê o passo, não um quadro depois. Alocar *dentro* do
+    // laço mandava uma segunda coletora depois de o passo já ter avançado, e
+    // com as duas operárias no campo ninguém fica dentro pra curar: 146s de
+    // espera que nenhum jogador vive. Ver `ninguemDentro` em sim/tutorial.js.
+    const painel = { painel: antes === 'abrirCampos' ? 'campos' : null };
+    if (antes === 'mandarColetora') A.alocar(guiado, 'campainhas', 'nectar', 1);
+    for (let i = 0; i < 30 * 150 && tutorialAtivo(guiado)?.id === antes; i++) {
+      passo(guiado, 1 / 30);
+      if (antes === 'colher') for (const c of A.celulasMaduras(guiado)) A.colher(guiado, c);
+      if (antes === 'vender') {
+        for (const v of Object.keys(guiado.pote)) A.vender(guiado, v, relogio(guiado.decorrido).estacao);
+      }
+      avancarTutorial(guiado, painel);
+    }
+    if (tutorialAtivo(guiado)?.id === antes) break;
+  }
+  ok('o tutorial inteiro se resolve', guiado.tutorial === null,
+    `travou em ${tutorialAtivo(guiado)?.id ?? '—'}`);
+  ok('passa por todos os passos', visitados.length === PASSOS.length,
+    `${visitados.length} de ${PASSOS.length}`);
+  ok('e é breve', guiado.decorrido < 60, `${Math.round(guiado.decorrido)}s de jogo`);
+  ok('com uma coletora só no campo',
+    guiado.campos.find((c) => c.id === 'campainhas').alocadas === 1);
+  ok('termina com a partida em andamento', guiado.derrota === null && guiado.vendidoNoAno > 0);
+
+  // Quem não conhece o jogo toca o + duas vezes, manda as duas operárias pro
+  // campo e fica dois minutos olhando "espere o mel" sem saber por quê. O passo
+  // tem que dizer o que houve.
+  const todasFora = novoJogo(42);
+  comecarTutorial(todasFora);
+  todasFora.tutorial.passo = PASSOS.findIndex((x) => x.id === 'esperarMel');
+  A.alocar(todasFora, 'campainhas', 'nectar', 1);
+  ok('sem alerta se alguém ficou dentro', tutorialAtivo(todasFora).alerta(todasFora) === null);
+  A.alocar(todasFora, 'campainhas', 'nectar', 1);
+  const alertaMel = tutorialAtivo(todasFora).alerta(todasFora);
+  ok('alerta quando todas vão pro campo', Array.isArray(alertaMel) && alertaMel.length > 0,
+    `${alertaMel}`);
+  const fonteCartao = await (await fetch('/src/ui/tutorial.js')).text();
+  ok('e o cartão desenha esse alerta', fonteCartao.includes('passo.alerta'));
+
+  // Sobrevive ao save: recarregar no meio não perde o lugar.
+  const guardadoTut = novoJogo(42);
+  comecarTutorial(guardadoTut);
+  confirmarPasso(guardadoTut);
+  const voltouTut = S.desserializar(JSON.parse(JSON.stringify(S.serializar(guardadoTut))));
+  ok('o tutorial sobrevive ao save', tutorialAtivo(voltouTut)?.indice === 1);
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }
