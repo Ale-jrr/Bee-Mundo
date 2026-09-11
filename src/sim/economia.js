@@ -363,16 +363,27 @@ export const META = {
   // arredondado e forçado a subir todo ano (meta que cai de um ano para o
   // outro parece defeito, mesmo quando a produção cai). Ver docs/BALANCE.md.
   //
-  // O Ano 1 é o único frouxo (1,8× na média) e é de propósito: com três
-  // abelhas, a sorte do começo faz a produção variar quase o dobro entre
-  // sementes (570 a 1.025 medidos), e uma meta apertada ali seria loteria.
+  // **A tabela é fechada pelo jogador razoável, não pelo robô.** Foi fechada
+  // pelo robô uma vez e o resultado, medido, foi que quem joga bem mas não
+  // ótimo perdia a partir do Ano 2 — folga de 0,44 lá e 0,75 no Ano 7.
   //
-  // O salto do Ano 1 para o 2 é grande porque o jogo é assim: a colônia sai de
-  // três abelhas para trinta. O degrau é o jogo, não um erro de tabela.
+  // "Razoável" aqui é medido, não imaginado: colhe tudo, vende tudo, escala a
+  // turma no melhor campo liberado, compra célula e melhoria quando sobra
+  // caixa, recolhe antes do inverno. Não alimenta a ninhada e não mistura
+  // florada — as duas coisas que exigem ter entendido o jogo a fundo, e que
+  // juntas respondem por quase toda a distância até o robô.
+  //
+  // O preço dessa escolha é o especialista folgar: o robô fica com 1,6× a
+  // 3,8×. Aceito de propósito — perder é o que faz a pessoa largar o jogo,
+  // sobrar margem não é.
+  //
+  // O Ano 1 é o único em que o robô produz **menos** que o razoável: ele
+  // segura mel para alimentar a ninhada em vez de vender. É investimento, e
+  // aparece em dobro no Ano 2.
   //
   // Resultado: folga entre 1,3× e 1,5× em **todos** os nove anos. Nenhum ano
   // de graça, e o último é o mais apertado.
-  porAno: [480, 3100, 3750, 4600, 4900, 5400, 5700, 5950, 6300],
+  porAno: [480, 1050, 2300, 2900, 3300, 3500, 3650, 3800, 3950],
 };
 
 export function metaDoAno(ano) {

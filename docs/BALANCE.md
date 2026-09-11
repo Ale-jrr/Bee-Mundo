@@ -1199,3 +1199,52 @@ com a estação em 210 s, o antigo `tetoSegundos: 700` deixou de conter um ano
 inteiro e os testes passariam a checar um histórico vazio. E a **partida
 inteira saiu da suíte** — ela levaria minutos; quem cobre isso é
 `medirBalanco`, rodado à mão, que já reporta `inconclusivas`.
+
+## A meta estava alta — porque era fechada pelo robô
+
+O robô é uma boa régua de **consistência**, mas fechar a meta por ele supõe
+que todo jogador joga como ele. Medido, não é o caso.
+
+### O jogador razoável
+
+Não imaginado — simulado, com as mesmas ferramentas do robô. Ele colhe tudo,
+vende tudo, escala a turma **no melhor campo liberado**, compra célula e
+melhoria quando sobra caixa, e recolhe antes do inverno. Não alimenta a
+ninhada e não mistura florada.
+
+> Primeira tentativa de modelá-lo alocava tudo sempre no Bosque das
+> Campainhas, o pior campo, e nunca comprava melhoria: dava 316 no Ano 1 e
+> produção **parada** em ~400/ano para sempre. Isso não é um humano razoável,
+> é um humano teimoso, e quase me fez concluir que a colônia não crescia.
+
+Contra a tabela fechada pelo robô, ele **perdia do Ano 2 em diante**:
+
+| ano | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| folga | 1,79 | **0,44** | **0,92** | **0,93** | 1,00 | **0,85** | **0,75** | **0,77** |
+
+### A tabela refeita por ele
+
+```js
+META.porAno = [480, 1050, 2300, 2900, 3300, 3500, 3650, 3800, 3950]
+```
+
+| ano | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| razoável (média) | 1,78 | 1,28 | 1,50 | 1,47 | 1,48 | 1,31 | 1,18 | 1,20 | 1,18 |
+| razoável (pior) | 1,76 | 1,16 | 1,18 | 1,47 | 1,47 | 1,27 | 1,12 | 1,18 | 1,16 |
+| robô | 1,59 | 3,78 | 2,24 | 2,21 | 2,06 | 2,14 | 2,16 | 2,23 | 2,23 |
+
+**O preço é o especialista folgar** (1,6× a 3,8×). Aceito de propósito:
+perder é o que faz a pessoa largar o jogo; sobrar margem não é.
+
+### O que o Ano 2 revela
+
+A folga do robô explode justo ali (3,78×) porque é onde as duas curvas se
+separam: **alimentar a ninhada** no Ano 1 devolve colônia no Ano 2, e quem não
+usa esse botão cresce numa velocidade completamente outra. O mesmo motivo
+explica o Ano 1 ser o único em que o robô produz **menos** que o razoável: ele
+segura mel em vez de vender.
+
+Se um dia a distância entre os dois incomodar, o parafuso não é a meta — é
+`NINHADA.avancoPorMel`, que hoje transforma um pote de mel em 10% de eclosão.
