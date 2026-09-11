@@ -51,6 +51,7 @@ import {
   BIOMAS, BIOMA_PADRAO, ESPECIES, especieDefende, deltaDoBioma, fatorDoBioma,
 } from '../src/sim/biomas.js';
 import { temperaturaAlvo } from '../src/sim/tick.js';
+import { ajustarParaCaber } from '../src/ui/inicio.js';
 import { defensoras, enviarGuarda } from '../src/sim/predadores.js';
 import {
   BENCAOS, nivelBencao, totalBencao, bonusBencao, descontoBencao, fatorDoInverno,
@@ -1443,6 +1444,27 @@ export async function rodar() {
   const voltouBioma = S.desserializar(JSON.parse(JSON.stringify(S.serializar(naCaatinga))));
   ok('bioma e especie sobrevivem ao save',
     voltouBioma.bioma === 'caatinga' && voltouBioma.especie === 'jandaira');
+
+  // ------------------------------- 34. a tela de inicio cabe na tela
+  // Ja quebrou duas vezes: titulo por cima do subtitulo, e o cartao vazando
+  // por baixo depois que os cards de bioma entraram. As alturas de chip e card
+  // eram fixas, entao encolher a escala quase nao mudava o total.
+  for (const [L, A] of [[375, 812], [360, 640], [1280, 620], [1500, 920], [820, 1180]]) {
+    for (const comSave of [false, true]) {
+      const m = medidas(L, A);
+      // `A - margem*2` e o tamanho PREFERIDO (margem igual em cima e embaixo).
+      // O que precisa ser verdade e mais fraco: o desenho faz
+      // `y = max(margem, (A-a)/2)`, entao o cartao aparece inteiro sempre que
+      // `a <= A - margem`. Exigir a margem simetrica reprovava layout que
+      // cabia na tela com folga embaixo.
+      const d = ajustarParaCaber(m, A - m.margem * 2, comSave);
+      const limite = A - m.margem;
+      ok(`o cartao de inicio cabe em ${L}x${A}${comSave ? ' com save' : ''}`,
+        d.a <= limite, `${Math.round(d.a)} de ${Math.round(limite)}`);
+      ok(`e o botao continua tocavel em ${L}x${A}${comSave ? ' com save' : ''}`,
+        d.hBotao >= 36, `${d.hBotao}`);
+    }
+  }
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

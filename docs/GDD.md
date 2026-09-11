@@ -1081,3 +1081,35 @@ Detalhe que voltou a morder: **“MATA ATLÂNTICA” em caixa alta não cabia** 
 `rotulo` corta em silêncio. O nome agora é medido com `larguraRotulo` antes de
 desenhar e encolhe proporcionalmente — a mesma correção que o rodapé da dica
 de ação (§ 9.20) já tinha precisado.
+
+### 9.31 A tela de início cabe — de verdade desta vez
+
+O cartão vazava por baixo depois que os cards de bioma entraram, **mesmo com o
+ajuste automático ligado**. A causa: `alturaDosCards()` e `alturaDosChips()`
+devolviam altura **fixa**, então reduzir a escala quase não mudava o total — o
+ajuste rodava e não adiantava nada.
+
+Três correções, em ordem de importância:
+
+1. **Chips e cards passaram a encolher junto.** A altura vem de fora agora, e
+   `ui/biomas.js` desenha em proporções do card em vez de pixels.
+2. **O ajuste itera.** As medidas têm piso (`Math.max`), então a altura não é
+   proporcional à escala e um passo único erra o alvo.
+3. **Modo compacto.** Quando nem o menor tamanho cabe, o bioma vira chip e
+   perde a paisagem. Perder a paisagem é melhor que ter metade dos botões fora
+   do alcance.
+
+Medido depois: 1500×920 e 375×812 mostram os cards com paisagem; 1280×620 cai
+no compacto e cabe.
+
+#### O teste que eu escrevi errado primeiro
+
+`ajustarParaCaber` foi exportada justamente para poder ser testada sem canvas —
+isto já quebrou duas vezes (§ 9.17 título sobre subtítulo, e agora o
+vazamento). Mas a primeira versão do teste exigia `a <= A - margem*2`, que é o
+tamanho **preferido**, com margem igual em cima e embaixo.
+
+O que precisa ser verdade é mais fraco: o desenho faz
+`y = max(margem, (A - a) / 2)`, então o cartão aparece inteiro sempre que
+`a <= A - margem`. O teste reprovava por **1 pixel** um layout que cabia na
+tela com 18 de folga — e eu quase fui cortar mais espaçamento por causa disso.

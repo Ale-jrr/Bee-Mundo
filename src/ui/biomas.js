@@ -9,12 +9,17 @@ import { BIOMAS, ESPECIES } from '../sim/biomas.js';
 //
 // Cada card traz três informações, na ordem em que o olho pega: a paisagem,
 // o nome com a espécie, e as duas características que de fato mudam a partida.
+//
+// A altura vem de fora: a tela de início encolhe tudo junto quando não cabe, e
+// card de altura fixa era exatamente o que impedia esse encolhimento de
+// funcionar — a escala caía e o cartão continuava do mesmo tamanho.
 
 const ESPACO = 8;
 export const ALTURA_CARD = 84;
 
-export function alturaDosCards(quantos = Object.keys(BIOMAS).length, colunas = 2) {
-  return Math.ceil(quantos / colunas) * (ALTURA_CARD + ESPACO);
+export function alturaDosCards(quantos = Object.keys(BIOMAS).length, colunas = 2,
+  altura = ALTURA_CARD) {
+  return Math.ceil(quantos / colunas) * (altura + ESPACO);
 }
 
 // Temperatura e rebrota em linguagem de jogador, não de planilha: "+7° mais
@@ -26,72 +31,75 @@ function caracteristicas(bioma) {
   if (t > 0) fora.push(`${t}° mais quente`);
   else if (t < 0) fora.push(`${Math.abs(t)}° mais frio`);
   else fora.push('clima ameno');
-  if (r < 0.95) fora.push(`campo repõe ${Math.round(r * 100)}%`);
-  else if (r > 1.05) fora.push(`campo repõe ${Math.round(r * 100)}%`);
+  if (r < 0.95 || r > 1.05) fora.push(`campo repõe ${Math.round(r * 100)}%`);
   else fora.push('campo repõe normal');
   return fora;
 }
 
-export function desenharCardsDeBioma(ctx, pal, x, y, l, escolhido, zonaId, colunas = 2) {
+export function desenharCardsDeBioma(ctx, pal, x, y, l, escolhido, zonaId,
+  colunas = 2, altura = ALTURA_CARD) {
   const ids = Object.keys(BIOMAS);
   const cardL = (l - ESPACO * (colunas - 1)) / colunas;
+  // Proporções do card, e não pixels: assim ele encolhe inteiro e nada se
+  // desencontra quando a tela é curta.
+  const k = altura / ALTURA_CARD;
 
   ids.forEach((id, i) => {
     const b = BIOMAS[id];
     const cx = x + (i % colunas) * (cardL + ESPACO);
-    const cy = y + Math.floor(i / colunas) * (ALTURA_CARD + ESPACO);
+    const cy = y + Math.floor(i / colunas) * (altura + ESPACO);
     const ativo = id === escolhido;
 
-    pilula(ctx, cx, cy, cardL, ALTURA_CARD);
+    pilula(ctx, cx, cy, cardL, altura);
     ctx.fillStyle = ativo ? pal.css('cheia') : pal.css('escuro', 0.08);
     ctx.fill();
 
-    const pad = Math.round(ALTURA_CARD * 0.12);
+    const pad = Math.round(altura * 0.12);
     // A paisagem não ocupa o card inteiro em altura: o nome do bioma é longo
     // ("Mata Atlântica", "Campos do Sul") e precisa da largura que sobra.
-    const tam = Math.round(ALTURA_CARD * 0.62);
-    desenharPaisagem(ctx, id, cx + pad, cy + (ALTURA_CARD - tam) / 2, tam);
+    const tam = Math.round(altura * 0.62);
+    desenharPaisagem(ctx, id, cx + pad, cy + (altura - tam) / 2, tam);
 
-    const tx = cx + pad + tam + Math.round(ALTURA_CARD * 0.11);
+    const tx = cx + pad + tam + Math.round(altura * 0.11);
     const largura = cardL - (tx - cx) - pad;
     const cor = ativo ? pal.css('tinta') : pal.css('suave');
 
     // Encolhe pra caber: "MATA ATLÂNTICA" em caixa alta não entra no espaço
     // que sobra, e `rotulo` corta em silêncio em vez de avisar.
-    let tamNome = 10;
-    let espNome = 1.2;
+    let tamNome = Math.max(7, 10 * k);
+    let espNome = 1.2 * k;
     const largoNome = larguraRotulo(ctx, b.nome, tamNome, espNome);
     if (largoNome > largura) {
       const f = largura / largoNome;
-      tamNome = Math.max(7, tamNome * f);
+      tamNome = Math.max(6, tamNome * f);
       espNome *= f;
     }
-    rotulo(ctx, b.nome, tx, cy + ALTURA_CARD * 0.26, {
+    rotulo(ctx, b.nome, tx, cy + altura * 0.26, {
       tamanho: tamNome, cor, espaco: espNome,
     });
 
     ctx.save();
-    ctx.font = `600 9px ${FONTE}`;
-    ctx.fillStyle = ativo ? pal.css('tinta') : pal.css('suave');
+    ctx.font = `600 ${Math.max(7, Math.round(9 * k))}px ${FONTE}`;
+    ctx.fillStyle = cor;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    ctx.fillText(ESPECIES[b.especie]?.nome ?? '', tx, cy + ALTURA_CARD * 0.46, largura);
+    ctx.fillText(ESPECIES[b.especie]?.nome ?? '', tx, cy + altura * 0.46, largura);
     ctx.restore();
 
-    // As características em cinza claro, menores: são o detalhe que se lê
-    // depois de já ter reconhecido o bioma pela paisagem.
+    // As características menores e mais claras: são o detalhe que se lê depois
+    // de já ter reconhecido o bioma pela paisagem.
     ctx.save();
-    ctx.font = `400 8px ${FONTE}`;
+    ctx.font = `400 ${Math.max(6, Math.round(8 * k))}px ${FONTE}`;
     ctx.fillStyle = ativo ? pal.css('tinta', 0.75) : pal.css('suave', 0.75);
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     caracteristicas(b).forEach((linha, n) => {
-      ctx.fillText(linha, tx, cy + ALTURA_CARD * (0.65 + n * 0.17), largura);
+      ctx.fillText(linha, tx, cy + altura * (0.65 + n * 0.17), largura);
     });
     ctx.restore();
 
-    zona(zonaId, cx, cy, cardL, ALTURA_CARD, { id });
+    zona(zonaId, cx, cy, cardL, altura, { id });
   });
 
-  return alturaDosCards(ids.length, colunas);
+  return alturaDosCards(ids.length, colunas, altura);
 }

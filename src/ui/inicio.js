@@ -5,7 +5,7 @@ import { desenharChips, alturaDosChips } from './desafios.js';
 import {
   DESAFIO_PADRAO, DURACOES, DURACAO_PADRAO, DIFICULDADES, DIFICULDADE_PADRAO,
 } from '../sim/desafios.js';
-import { BIOMA_PADRAO } from '../sim/biomas.js';
+import { BIOMAS, BIOMA_PADRAO } from '../sim/biomas.js';
 import { desenharCardsDeBioma, alturaDosCards } from './biomas.js';
 import { relogio } from '../sim/estacoes.js';
 import { ler as lerConquistas } from '../core/conquistas.js';
@@ -40,8 +40,7 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
     ?? DURACOES[DURACAO_PADRAO].anos;
 
   const cabe = A - m.margem * 2;
-  let d = medir(m, m.esc, podeContinuar);
-  if (d.a > cabe) d = medir(m, m.esc * (cabe / d.a), podeContinuar);
+  let d = ajustarParaCaber(m, cabe, podeContinuar);
 
   const l = Math.min(420, L - m.margem * 2);
   const x = (L - l) / 2;
@@ -99,9 +98,13 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
     tamanho: Math.max(9, 10 * d.esc), cor: pal.css('suave'), espaco: 2.2,
   });
   cursor += d.hRotulo + d.respiro;
-  cursor += desenharCardsDeBioma(ctx, pal, x + d.pad, cursor, l - d.pad * 2,
-    ui.biomaEscolhido ?? BIOMA_PADRAO, 'inicio:bioma');
-  cursor += d.respiro;
+  cursor += d.compacto
+    ? desenharChips(ctx, pal, x + d.pad, cursor, l - d.pad * 2,
+      ui.biomaEscolhido ?? BIOMA_PADRAO, 'inicio:bioma',
+      { tabela: BIOMAS, colunas: 2, altura: d.hChipBaixo, travado: () => false })
+    : desenharCardsDeBioma(ctx, pal, x + d.pad, cursor, l - d.pad * 2,
+      ui.biomaEscolhido ?? BIOMA_PADRAO, 'inicio:bioma', 2, d.hCard);
+  cursor += d.entreGrupos;
 
   rotulo(ctx, 'duração', x + d.pad, cursor + d.hRotulo / 2, {
     tamanho: Math.max(9, 10 * d.esc), cor: pal.css('suave'), espaco: 2.2,
@@ -109,8 +112,8 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
   cursor += d.hRotulo + d.respiro;
   cursor += desenharChips(ctx, pal, x + d.pad, cursor, l - d.pad * 2,
     ui.duracaoEscolhida ?? DURACAO_PADRAO, 'inicio:duracao',
-    { tabela: DURACOES, colunas: 3, altura: 34, travado: () => false });
-  cursor += d.respiro;
+    { tabela: DURACOES, colunas: 3, altura: d.hChipBaixo, travado: () => false });
+  cursor += d.entreGrupos;
 
   rotulo(ctx, 'dificuldade', x + d.pad, cursor + d.hRotulo / 2, {
     tamanho: Math.max(9, 10 * d.esc), cor: pal.css('suave'), espaco: 2.2,
@@ -118,15 +121,15 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
   cursor += d.hRotulo + d.respiro;
   cursor += desenharChips(ctx, pal, x + d.pad, cursor, l - d.pad * 2,
     ui.dificuldadeEscolhida ?? DIFICULDADE_PADRAO, 'inicio:dificuldade',
-    { tabela: DIFICULDADES, colunas: 4, altura: 34, travado: () => false });
-  cursor += d.respiro;
+    { tabela: DIFICULDADES, colunas: 4, altura: d.hChipBaixo, travado: () => false });
+  cursor += d.entreGrupos;
 
   rotulo(ctx, 'desafio da próxima partida', x + d.pad, cursor, {
     tamanho: Math.max(9, 10 * d.esc), cor: pal.css('suave'), espaco: 2.2,
   });
   cursor += d.hRotulo + d.respiro;
   cursor += desenharChips(ctx, pal, x + d.pad, cursor, l - d.pad * 2,
-    ui.desafioEscolhido ?? DESAFIO_PADRAO, 'inicio:desafio');
+    ui.desafioEscolhido ?? DESAFIO_PADRAO, 'inicio:desafio', { altura: d.hChip });
   cursor += d.gap;
 
   pilula(ctx, x + d.pad, cursor, l - d.pad * 2, d.hSom);
@@ -150,20 +153,59 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
   });
 }
 
+// Escolhe a escala em que o cartão cabe na tela. Exportada porque isto já
+// quebrou duas vezes — uma com título sobre subtítulo, outra com o cartão
+// vazando por baixo — e só dá pra travar num teste se der pra chamar sem tela.
+export function ajustarParaCaber(m, cabe, podeContinuar) {
+  let escala = m.esc;
+  let d = medir(m, escala, podeContinuar);
+  // Itera em vez de ajustar uma vez: as medidas têm piso (`Math.max`), então
+  // a altura não é proporcional à escala e um único passo erra o alvo.
+  for (let volta = 0; volta < 6 && d.a > cabe; volta++) {
+    escala *= cabe / d.a;
+    d = medir(m, escala, podeContinuar);
+  }
+  // Nem no menor tamanho coube: abre mão da paisagem do bioma e tenta de novo.
+  if (d.a > cabe) {
+    escala = m.esc;
+    d = medir(m, escala, podeContinuar, true);
+    for (let volta = 0; volta < 6 && d.a > cabe; volta++) {
+      escala *= cabe / d.a;
+      d = medir(m, escala, podeContinuar, true);
+    }
+  }
+  return d;
+}
+
 // Todas as medidas do cartão em um lugar só, para a altura total e o desenho
 // nunca discordarem. Recebe `esc` de fora porque o cartão se remede menor
 // quando não cabe na tela.
-function medir(m, esc, podeContinuar) {
-  const pad = Math.max(16, Math.round(24 * esc));
-  const gap = Math.max(13, Math.round(18 * esc));
-  const respiro = Math.max(9, Math.round(12 * esc));
+// `compacto`: em tela baixa o bioma vira chip em vez de card. Os pisos das
+// medidas (`Math.max`) impedem o encolhimento de ir além de certo ponto, e
+// abaixo dele a escolha é entre perder a paisagem ou vazar a tela — perder a
+// paisagem é melhor que ter metade dos botões fora do alcance.
+function medir(m, esc, podeContinuar, compacto = false) {
+  // Os pisos só mordem quando a escala já está pequena (tela baixa), então
+  // apertá-los não toca nas telas normais — só dá mais curso ao encolhimento.
+  const pad = Math.max(13, Math.round(24 * esc));
+  const gap = Math.max(compacto ? 8 : 10, Math.round(18 * esc));
+  const respiro = Math.max(6, Math.round(12 * esc));
   // O alvo de toque pode encolher um pouco em tela baixa, mas não sumir.
   const hBotao = Math.max(Math.round(m.toque * 0.86), Math.round(50 * esc));
-  const hSom = Math.max(28, Math.round(36 * esc));
+  const hSom = Math.max(24, Math.round(36 * esc));
   const rHex = Math.max(12, Math.round(20 * esc));
-  const tamTitulo = Math.max(24, Math.round(38 * esc));
+  const tamTitulo = Math.max(20, Math.round(38 * esc));
   const tamSub = Math.max(8, Math.round(10 * esc));
-  const hRotulo = Math.max(10, Math.round(12 * esc));
+  const hRotulo = Math.max(8, Math.round(12 * esc));
+  // Chips e cards também encolhem. Enquanto tinham altura fixa, reduzir a
+  // escala quase não mudava o total — e o cartão passava da tela mesmo com o
+  // ajuste ligado, que foi exatamente o bug.
+  const hCard = compacto ? 0 : Math.max(52, Math.round(84 * esc));
+  const hChip = Math.max(28, Math.round(46 * esc));
+  const hChipBaixo = Math.max(22, Math.round(34 * esc));
+  // No compacto os rótulos de seção já separam os grupos: o respiro extra
+  // entre eles é o que dá os últimos pixels quando a tela é muito baixa.
+  const entreGrupos = compacto ? 0 : respiro;
 
   // Os três hexágonos ocupam 2,84 raios de altura: o de cima está um raio
   // acima do centro e cada um se estende 0,92 raio para fora.
@@ -174,14 +216,19 @@ function medir(m, esc, podeContinuar) {
     + (podeContinuar ? hBotao + gap : 0)
     + hBotao + gap                                  // começar / novo jogo
     + hBotao + gap + respiro                        // tutorial
-    + (hRotulo + respiro + alturaDosCards() + respiro)           // bioma
-    + (hRotulo + respiro + alturaDosChips(3, 3, 34) + respiro)   // duração
-    + (hRotulo + respiro + alturaDosChips(4, 4, 34) + respiro)   // dificuldade
-    + hRotulo + respiro + alturaDosChips() + gap    // desafios
+    + (hRotulo + respiro
+      + (compacto ? alturaDosChips(4, 2, hChipBaixo) : alturaDosCards(4, 2, hCard))
+      + entreGrupos)                                                     // bioma
+    + (hRotulo + respiro + alturaDosChips(3, 3, hChipBaixo) + entreGrupos)   // duração
+    + (hRotulo + respiro + alturaDosChips(4, 4, hChipBaixo) + entreGrupos)   // dificuldade
+    + hRotulo + respiro + alturaDosChips(4, 2, hChip) + gap              // desafios
     + hSom + gap
     + tamSub + pad;                                 // rodapé
 
-  return { esc, pad, gap, respiro, hBotao, hSom, rHex, tamTitulo, tamSub, hRotulo, hMarca, a };
+  return {
+    esc, pad, gap, respiro, hBotao, hSom, rHex, tamTitulo, tamSub, hRotulo,
+    hCard, hChip, hChipBaixo, entreGrupos, hMarca, a, compacto,
+  };
 }
 
 // Marca do jogo: três hexágonos e o nome. Devolve onde o conteúdo continua.
