@@ -3,7 +3,8 @@ import { zona } from './zonas.js';
 import { medidas } from './layout.js';
 import { desenharChips, alturaDosChips } from './desafios.js';
 import {
-  DESAFIO_PADRAO, DURACOES, DURACAO_PADRAO, DIFICULDADES, DIFICULDADE_PADRAO,
+  DESAFIOS, DESAFIO_PADRAO, DURACOES, DURACAO_PADRAO,
+  DIFICULDADES, DIFICULDADE_PADRAO,
 } from '../sim/desafios.js';
 import { BIOMAS, BIOMA_PADRAO } from '../sim/biomas.js';
 import { desenharCardsDeBioma, alturaDosCards } from './biomas.js';
@@ -313,11 +314,15 @@ function plano(m, esc, podeContinuar, colunasBioma) {
   const apertado = colunasBioma > 2;
   const hDesafio = apertado ? d.hChipBaixo : d.hChip;
 
+  // Quantos são vem da tabela, e nunca de um número escrito aqui: medir quatro
+  // biomas e desenhar cinco é o cartão vazando de novo no dia em que entrar um.
+  const quantos = (tabela) => Object.keys(tabela).length;
   const grupo = (conteudo) => d.hRotulo + d.respiro + conteudo;
-  const hEscolhas = grupo(alturaDosCards(4, colunasBioma, d.hCard)) + d.entreGrupos
-    + grupo(alturaDosChips(3, 3, d.hChipBaixo)) + d.entreGrupos
-    + grupo(alturaDosChips(4, 4, d.hChipBaixo)) + d.entreGrupos
-    + grupo(alturaDosChips(4, 2, hDesafio));
+  const hEscolhas =
+    grupo(alturaDosCards(quantos(BIOMAS), colunasBioma, d.hCard)) + d.entreGrupos
+    + grupo(alturaDosChips(quantos(DURACOES), 3, d.hChipBaixo)) + d.entreGrupos
+    + grupo(alturaDosChips(quantos(DIFICULDADES), 4, d.hChipBaixo)) + d.entreGrupos
+    + grupo(alturaDosChips(quantos(DESAFIOS), 2, hDesafio));
   const hBaixo = d.hSom + d.gap + d.tamSub;
   const hMarcaEAcoes = d.hMarca + d.gapGrande + d.hAcoes;
 
