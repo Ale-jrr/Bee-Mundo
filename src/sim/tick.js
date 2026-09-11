@@ -5,6 +5,7 @@ import { atualizarFloradas, statsComFlorada } from './floradas.js';
 import { atualizarEncomendas } from './encomendas.js';
 import { abrirEscolha, bonusBencao, descontoBencao, fatorDoInverno } from './bencaos.js';
 import { regraDoDesafio, penalidadeDoInverno, anosDaPartida } from './desafios.js';
+import { deltaDoBioma, fatorDoBioma, fatorDaEspecie } from './biomas.js';
 import { ritmoDoAr, limiteDeFome } from './clima.js';
 import { atualizarEnxame } from './enxame.js';
 import { atualizarTempo, fatorDaColeta, fatorDaRebrota } from './tempo.js';
@@ -96,8 +97,8 @@ function atualizarClima(estado, t, dt) {
   ).length;
 
   const alvo = {
-    temperatura: temperaturaAlvo(t.estacao.temperatura, naColmeia,
-      bonusBencao(estado, 'calor')),
+    temperatura: temperaturaAlvo(t.estacao.temperatura + deltaDoBioma(estado, 'temperatura'),
+      naColmeia, bonusBencao(estado, 'calor')),
     co2: co2Alvo(t.estacao.co2 * 10, naColmeia),
     umidade: 45 + t.estacao.umidade,
   };
@@ -150,7 +151,8 @@ function atualizarCampos(estado, t, dt) {
     const { nectarMax } = statsComFlorada(campo);
     // `campo.rebrota` é o multiplicador próprio do campo: o Urzal se recompõe
     // a um quarto da velocidade dos outros, e é isso que o torna um sprint.
-    const porSegundo = (nectarMax * t.estacao.rebrota * fatorDaRebrota(estado)
+    const porSegundo = (nectarMax * t.estacao.rebrota * fatorDoBioma(estado, 'rebrota')
+      * fatorDaRebrota(estado)
       * (campo.rebrota ?? 1)) / 60;
     campo.nectar = Math.min(nectarMax, campo.nectar + porSegundo * dt);
   }
@@ -247,7 +249,7 @@ function atualizarAbelhas(estado, t, dt) {
           // anunciado como 0% no painel tem que ser 0% o ano todo. Somando, o
           // Bosque das Campainhas matava abelhas no outono apesar de mostrar
           // "0% risco" — e perder 1 das 2 operárias iniciais costuma ser fatal.
-          const risco = stats.risco * (1 + t.estacao.risco)
+          const risco = stats.risco * (1 + t.estacao.risco + deltaDoBioma(estado, 'risco'))
             * descontoBencao(estado, 'guarda') * regraDoDesafio(estado, 'risco')
             * fatorRisco(abelha);
           if (risco > 0 && sortear(estado) < risco * VOO.riscoPorViagem) {
@@ -297,7 +299,8 @@ function viagemDoCampo(estado, stats) {
 // Taxa do campo já com a bênção de coleta. Vive aqui, e não em `economia.js`,
 // porque depende do estado da partida — `economia` guarda constantes.
 function taxaColeta(estado, stats, abelha) {
-  return stats.taxa * bonusBencao(estado, 'coleta') * fatorColeta(abelha);
+  return stats.taxa * bonusBencao(estado, 'coleta') * fatorColeta(abelha)
+    * fatorDaEspecie(estado, 'coleta');
 }
 
 // A abelha em questão é a melhor candidata em casa para sair a campo? Sem

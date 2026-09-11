@@ -37,6 +37,7 @@ const ui = {
   salvoEm: null, saveFalhou: false, confirmandoNovoJogo: false,
   desafioEscolhido: null,
   duracaoEscolhida: null,
+  biomaEscolhido: null,
   dificuldadeEscolhida: null,
   // Quais cartões o jogador encolheu. Enquadramento, não estado de jogo.
   minimizados: {},
@@ -224,6 +225,9 @@ function tratarInicio(z) {
       recomecar();
       comecarTutorial(estado);
       ui.tela = 'jogo';
+      break;
+    case 'inicio:bioma':
+      ui.biomaEscolhido = z.dados.id;
       break;
     case 'inicio:duracao':
       ui.duracaoEscolhida = z.dados.id;
@@ -465,6 +469,7 @@ function recomecar() {
   estado = novoJogo(undefined, {
     desafio: ui.desafioEscolhido ?? undefined,
     duracao: ui.duracaoEscolhida ?? undefined,
+    bioma: ui.biomaEscolhido ?? undefined,
     dificuldade: ui.dificuldadeEscolhida ?? undefined,
   });
   ui.painel = null;

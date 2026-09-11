@@ -15,6 +15,7 @@ import { registrarEntrega } from './encomendas.js';
 import { bonusBencao, descontoBencao } from './bencaos.js';
 import { regraDoDesafio } from './desafios.js';
 import { sortearTalento, TALENTOS } from './talentos.js';
+import { fatorDaEspecie } from './biomas.js';
 import { RAINHA, podeCoroar, emInterregno } from './rainha.js';
 
 const falha = (motivo) => ({ ok: false, motivo });
@@ -93,7 +94,9 @@ export function misturar(estado) {
 }
 
 export function precoDeVenda(estado, variedade, estacao) {
-  const base = VARIEDADES[variedade].base;
+  // O mel de meliponíneo vale muito mais por pote, e é o que compensa a
+  // coleta menor da espécie.
+  const base = VARIEDADES[variedade].base * fatorDaEspecie(estado, 'preco');
   const sazonal = 1 + (estacao?.preco ?? 0);
   return base * sazonal * (estado.mercado[variedade] ?? 1) * bonusBencao(estado, 'negocio');
 }

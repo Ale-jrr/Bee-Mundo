@@ -255,7 +255,15 @@ function decidir(estado, cfg) {
 export function criarPartida(semente, opcoes = {}) {
   return {
     cfg: { ...PADRAO, ...opcoes },
-    estado: novoJogo(semente, opcoes.desafio),
+    // Os eixos inteiros, nao so o desafio: passar `opcoes.desafio` fazia os
+    // quatro biomas medirem exatamente a mesma partida, e eu quase li isso
+    // como "bioma nao muda nada".
+    estado: novoJogo(semente, {
+      desafio: opcoes.desafio,
+      duracao: opcoes.duracao,
+      dificuldade: opcoes.dificuldade,
+      bioma: opcoes.bioma,
+    }),
     semente,
     escolhas: 0,
     passosDados: 0,

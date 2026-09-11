@@ -1,4 +1,5 @@
 import { fatorDaDificuldade } from './desafios.js';
+import { metaDoBioma, BIOMAS } from './biomas.js';
 
 // Todas as constantes de balanceamento vivem aqui. Nenhum número mágico
 // espalhado pelo resto do código — a curva do jogo se ajusta neste arquivo.
@@ -235,41 +236,10 @@ export const MERCADO = {
 // campo não exige tocar no save nem no código do jogo.
 // Risco e recompensa andam juntos: o mel mais caro fica no campo mais longe e
 // mais perigoso. `florada` fica reservada pra mecânica de troca de variedade.
-export const CAMPOS = [
-  {
-    id: 'campainhas', nome: 'Bosque das Campainhas', variedade: 'silvestre',
-    taxa: 17.6, viagem: 5.2, nectarMax: 40, risco: 0, slots: 4, nivelMin: 1,
-    // Uma coletora só: com 2 operárias, a outra fica em casa — visível,
-    // aquecendo o favo e cuidando do mel. O pólen inicial do silo cobre
-    // os primeiros potes até o jogador descobrir a turma de pólen.
-    alocadasInicial: 1, polenInicial: 0,
-    sobre: { bom: 'Seguro e simples, pertinho de casa.', ruim: 'Um ritmo tranquilo.' },
-  },
-  {
-    id: 'treval', nome: 'Treval do Moinho', variedade: 'trevo',
-    taxa: 29.0, viagem: 9, nectarMax: 75, risco: 0.06, slots: 5, nivelMin: 3,
-    alocadasInicial: 0, polenInicial: 0,
-    sobre: { bom: 'Quase o dobro de néctar, e mel mais caro.', ruim: 'Longe — e nem toda abelha volta.' },
-  },
-  // Quebra o padrão dos outros três, que são a mesma ideia em três
-  // intensidades (mais longe = mais rico = mais perigoso). O Urzal é perto,
-  // seguro e o mais rápido do jogo — e esgota. A reserva é pequena e se
-  // recompõe a um quarto da velocidade, então ele rende muito por pouco tempo
-  // e obriga a mudar a turma de lugar em vez de escalar e esquecer.
-  {
-    id: 'urzal', nome: 'Urzal da Neblina', variedade: 'acacia',
-    taxa: 52.0, viagem: 6, nectarMax: 55, risco: 0, slots: 3, nivelMin: 5,
-    rebrota: 0.25,
-    alocadasInicial: 0, polenInicial: 0,
-    sobre: { bom: 'Pertinho, seguro e o mais rápido de todos.', ruim: 'Seca depressa e demora a voltar.' },
-  },
-  {
-    id: 'acacias', nome: 'Vale das Acácias', variedade: 'acacia',
-    taxa: 45.0, viagem: 13, nectarMax: 120, risco: 0.16, slots: 6, nivelMin: 7,
-    alocadasInicial: 0, polenInicial: 0,
-    sobre: { bom: 'A acácia é o mel mais caro da bolsa.', ruim: 'Viagem longa e francamente perigosa.' },
-  },
-];
+// Os campos do bioma padrão. Moram em `biomas.js` junto com os dos outros
+// biomas: duas cópias da mesma lista já divergiram uma vez, e o que faltou
+// (`sobre`, `alocadasInicial`) quebrou o painel de campos em silêncio.
+export const CAMPOS = BIOMAS.mata.campos;
 
 // Chance de perder a abelha numa volta completa = risco × isto.
 // Vive aqui pra o risco do campo poder ser lido como porcentagem na UI.
@@ -406,7 +376,7 @@ export const META = {
 // `estado` é opcional só para as chamadas antigas dos testes; no jogo ele
 // sempre chega, e é dele que sai o fator de dificuldade.
 export function metaDoAno(ano, estado = null) {
-  return Math.round(metaBase(ano) * fatorDaDificuldade(estado));
+  return Math.round(metaBase(ano) * fatorDaDificuldade(estado) * metaDoBioma(estado));
 }
 
 function metaBase(ano) {

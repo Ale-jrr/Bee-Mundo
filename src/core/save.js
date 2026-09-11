@@ -41,6 +41,8 @@ export function serializar(estado) {
     desafio: estado.desafio ?? null,
     duracao: estado.duracao ?? null,
     dificuldade: estado.dificuldade ?? null,
+    bioma: estado.bioma ?? null,
+    especie: estado.especie ?? null,
     rngEstado: estado.rngEstado,
     decorrido: estado.decorrido,
     velocidade: estado.velocidade,
@@ -93,6 +95,7 @@ export function desserializar(dados) {
     desafio: dados.desafio ?? undefined,
     duracao: dados.duracao ?? undefined,
     dificuldade: dados.dificuldade ?? undefined,
+    bioma: dados.bioma ?? undefined,
   });
   const estado = { ...base };
 

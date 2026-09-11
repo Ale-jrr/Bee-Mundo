@@ -985,3 +985,66 @@ E aí está o custo escondido: 3 durações × 4 dificuldades × 4 biomas são 4
 combinações, e não dá para calibrar meta para cada uma. A saída é a meta
 continuar **derivada** — tabela base × fator de dificuldade × fator de bioma
 — e medir só os biomas.
+
+### 9.29 Biomas e espécies — `sim/biomas.js`
+
+Quatro biomas brasileiros, cada um trocando três coisas: os campos, o clima e
+a **espécie de abelha**.
+
+| bioma | espécie | clima | fator de meta |
+| --- | --- | --- | --- |
+| Mata Atlântica | Africanizada | o padrão | 1,00 |
+| Caatinga | Jandaíra | +7 °C, rebrota 0,50 | 1,15 |
+| Cerrado | Mandaçaia | +3 °C, rebrota 0,75 | 1,25 |
+| Campos do Sul | Carníola | −7 °C, rebrota 1,15 | 0,70 |
+
+**A espécie vem junto com o bioma**, e não como quarto eixo: é assim na vida
+real — jandaíra é da caatinga, não do sul — e como eixo livre produziria
+combinações que ninguém iria balancear.
+
+#### O que a espécie muda
+
+São multiplicadores aplicados nos mesmos pontos onde talento e bênção já
+multiplicam, mais uma regra que não é número: **abelha sem ferrão não para
+vespa na porta**. Nos biomas de meliponíneo a defesa deixa de ser "montar
+guarda" e passa a ser "manter gente dentro" — e o botão de reforço recusa com
+essa explicação em vez de não fazer nada.
+
+`coleta × preco` fica perto de 1 em todas, de propósito: a espécie muda **como**
+se joga, não **quanto** se produz.
+
+> Primeira versão dava à jandaíra preço 2,4 contra coleta 0,62 — produto 1,49.
+> Medido, o bioma dela saiu com folga **2,75** contra 1,30 da mata. Não era uma
+> troca, era um upgrade com um inconveniente.
+
+#### Custo de implementação: os ganchos eram poucos
+
+O clima é um punhado de deltas nos **cinco pontos** onde `tick.js` consome a
+estação, e não uma reescrita de `relogio()`, que é chamado em dezenas de
+lugares. Os campos já eram por estado. Foi isso que fez um eixo "caro" sair
+barato.
+
+`biomas.js` **não importa `economia.js`**: economia importa biomas (para o
+fator de meta), e a volta fecharia um ciclo.
+
+#### Duas armadilhas que a implementação revelou
+
+**Campo incompleto.** Os campos novos nasceram sem `alocadasInicial`,
+`polenInicial` e `sobre`. Sem `sobre` o painel de campos quebra; sem os
+iniciais, toda conta de vaga vira `NaN` em silêncio. Correção em dois níveis:
+os campos ficaram completos, e `estado.js` passou a usar `?? 0`. E `CAMPOS`
+deixou de ser uma segunda cópia da lista — agora é `BIOMAS.mata.campos`.
+
+**O robô ignorava os eixos.** `criarPartida` passava só `opcoes.desafio` ao
+`novoJogo`, então os quatro biomas mediam exatamente a mesma partida — quatro
+linhas idênticas que quase li como "bioma não muda nada".
+
+#### Os fatores de meta são medidos, não escolhidos
+
+Chutados, saíram quase invertidos: caatinga e cerrado fáceis (1,87 e 1,80) e o
+sul impossível (0,84). Com os valores atuais os quatro ficam em **1,29 a 1,32**
+de folga no Ano 1.
+
+> Ressalva: fechados com **uma semente e só o Ano 1**. O inverno do sul e a
+> rebrota lenta da caatinga mordem mais tarde — valem remedir na partida
+> inteira.

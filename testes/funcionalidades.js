@@ -44,7 +44,14 @@ import {
 } from '../src/sim/talentos.js';
 import { campoEmFlorada, statsComFlorada, FLORADA } from '../src/sim/floradas.js';
 import { encomendaAtiva } from '../src/sim/encomendas.js';
-import { VARIEDADES, precoDaCelula, PRESENTE_DO_ANO, NINHADA, META, metaDoAno } from '../src/sim/economia.js';
+import {
+  VARIEDADES, precoDaCelula, PRESENTE_DO_ANO, NINHADA, META, metaDoAno,
+} from '../src/sim/economia.js';
+import {
+  BIOMAS, BIOMA_PADRAO, ESPECIES, especieDefende, deltaDoBioma, fatorDoBioma,
+} from '../src/sim/biomas.js';
+import { temperaturaAlvo } from '../src/sim/tick.js';
+import { defensoras, enviarGuarda } from '../src/sim/predadores.js';
 import {
   BENCAOS, nivelBencao, totalBencao, bonusBencao, descontoBencao, fatorDoInverno,
   sortearBencaos, escolherBencao, textoDaBencao,
@@ -1386,6 +1393,56 @@ export async function rodar() {
   ok('vencer na duracao curta acontece no ano dela',
     quaseLa.vitoria !== null && quaseLa.vitoria.ano === anosDaPartida(quaseLa),
     `${quaseLa.vitoria?.ano ?? '-'} de ${anosDaPartida(quaseLa)}`);
+
+  // ------------------------------------------- 33. biomas e especies
+  ok('todo bioma traz quatro campos completos',
+    Object.values(BIOMAS).every((b) => b.campos.length === 4
+      && b.campos.every((c) => c.sobre && typeof c.alocadasInicial === 'number'
+        && typeof c.polenInicial === 'number' && c.slots > 0)),
+    Object.keys(BIOMAS).join(','));
+  ok('e uma especie que existe',
+    Object.values(BIOMAS).every((b) => ESPECIES[b.especie]));
+  ok('CAMPOS e o bioma padrao, nao uma segunda copia',
+    CAMPOS === BIOMAS[BIOMA_PADRAO].campos);
+
+  const naCaatinga = novoJogo(42, { bioma: 'caatinga' });
+  const naMata = novoJogo(42, { bioma: 'mata' });
+  ok('o bioma troca os campos',
+    naCaatinga.campos[0].id !== naMata.campos[0].id,
+    `${naCaatinga.campos[0].id} vs ${naMata.campos[0].id}`);
+  ok('e a especie vem junto', naCaatinga.especie === 'jandaira');
+  ok('nenhum campo comeca com vaga NaN',
+    Object.values(BIOMAS).every((b) => novoJogo(1, { bioma: Object.keys(BIOMAS)
+      .find((k) => BIOMAS[k] === b) }).campos
+      .every((c) => Number.isFinite(c.alocadas) && Number.isFinite(c.polenAlocadas))));
+
+  // Clima: a caatinga e mais quente que a mata na mesma estacao.
+  ok('o bioma desloca a temperatura',
+    temperaturaAlvo(0 + deltaDoBioma(naCaatinga, 'temperatura'), 0)
+    > temperaturaAlvo(0 + deltaDoBioma(naMata, 'temperatura'), 0));
+  ok('e multiplica a rebrota',
+    fatorDoBioma(naCaatinga, 'rebrota') < fatorDoBioma(naMata, 'rebrota'));
+
+  // Especie sem ferrao nao para vespa: e a diferenca mais dura entre criar
+  // Apis e criar meliponineo.
+  ok('africanizada defende a porta', especieDefende(naMata) === true);
+  ok('jandaira nao defende', especieDefende(naCaatinga) === false);
+  const semFerrao = novoJogo(42, { bioma: 'caatinga' });
+  for (const a of semFerrao.abelhas) if (a.papel === 'operaria') a.talento = 'defesa';
+  ok('e nenhuma guardia conta na porta dela', defensoras(semFerrao).length === 0);
+  ok('o reforco manual tambem e recusado',
+    enviarGuarda(Object.assign(semFerrao, { ameaca: { fase: 'aviso', vespas: [{}] } })).ok === false);
+
+  // O mel dela vale mais por pote, e e isso que compensa a coleta menor.
+  const estacaoQualquer = relogio(0).estacao;
+  ok('mel de meliponineo vale mais',
+    A.precoDeVenda(naCaatinga, 'silvestre', estacaoQualquer)
+    > A.precoDeVenda(naMata, 'silvestre', estacaoQualquer));
+
+  ok('o bioma entra na meta', metaDoAno(1, naCaatinga) !== metaDoAno(1, naMata));
+  const voltouBioma = S.desserializar(JSON.parse(JSON.stringify(S.serializar(naCaatinga))));
+  ok('bioma e especie sobrevivem ao save',
+    voltouBioma.bioma === 'caatinga' && voltouBioma.especie === 'jandaira');
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

@@ -2,6 +2,7 @@ import { sortear } from '../core/rng.js';
 import { mostrarDica } from './dicas.js';
 import { tentarEvento } from './eventos.js';
 import { VARIEDADES } from './economia.js';
+import { especieDefende } from './biomas.js';
 
 // Vespas. Antes o ataque era abstrato: um relógio corria, o jogador mandava
 // duas abelhas "de guarda", e no fim uma coletora **que estava no campo**
@@ -46,6 +47,9 @@ function quantasVespas(estado) {
 // jogador não deveria ter que lembrar disso toda vez. `guarda` é o reforço
 // que ele pôs à mão.
 export function defensoras(estado) {
+  // Abelha sem ferrão não para vespa na porta: no bioma dela, a defesa é
+  // manter gente dentro, não montar guarda.
+  if (!especieDefende(estado)) return [];
   return (estado.abelhas ?? []).filter((a) => a.papel === 'operaria'
     && a.estado === 'colmeia'
     && (a.guarda || a.talento === 'defesa'));
@@ -62,6 +66,10 @@ export function vespasSemDefesa(estado) {
 // única defesa.
 export function enviarGuarda(estado) {
   if (!estado.ameaca) return { ok: false, motivo: 'Nenhuma vespa por perto.' };
+  // Sem ferrão não há o que pôr na porta: o botão some em vez de não fazer nada.
+  if (!especieDefende(estado)) {
+    return { ok: false, motivo: 'Esta abelha não tem ferrão: recolha as coletoras.' };
+  }
   if (estado.ameaca.fase === 'luta') return { ok: false, motivo: 'Tarde demais: já estão na porta.' };
   if (!vespasSemDefesa(estado)) return { ok: false, motivo: 'A porta já está coberta.' };
 

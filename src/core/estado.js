@@ -5,6 +5,7 @@ import {
   DESAFIOS, DESAFIO_PADRAO, DURACOES, DURACAO_PADRAO,
   DIFICULDADES, DIFICULDADE_PADRAO,
 } from '../sim/desafios.js';
+import { BIOMAS, BIOMA_PADRAO, camposDoBioma } from '../sim/biomas.js';
 
 // 2: as abelhas passaram a fazer o mel (antes a célula curava sozinha), ganharam
 // passeio, trabalho e fome.
@@ -29,6 +30,7 @@ export function novoJogo(semente = Date.now() & 0xffffffff, modos = DESAFIO_PADR
   const duracao = DURACOES[escolhas.duracao] ? escolhas.duracao : DURACAO_PADRAO;
   const dificuldade = DIFICULDADES[escolhas.dificuldade]
     ? escolhas.dificuldade : DIFICULDADE_PADRAO;
+  const bioma = BIOMAS[escolhas.bioma] ? escolhas.bioma : BIOMA_PADRAO;
 
   const celulas = {};
   // Centro + primeiro anel. O centro é da rainha; três vizinhas já vêm abertas.
@@ -53,7 +55,11 @@ export function novoJogo(semente = Date.now() & 0xffffffff, modos = DESAFIO_PADR
     semente,
     desafio: modo,
     duracao,
-    dificuldade,          // modificador de partida escolhido no menu
+    dificuldade,
+    bioma,
+    // A espécie vem do bioma, mas mora no estado: um save carregado não
+    // deve mudar de abelha se a tabela de biomas for reequilibrada.
+    especie: (BIOMAS[bioma] ?? BIOMAS[BIOMA_PADRAO]).especie,          // modificador de partida escolhido no menu
     rngEstado: rng.semente,
 
     decorrido: 0,          // segundos de jogo — a única fonte de tempo
@@ -121,12 +127,14 @@ export function novoJogo(semente = Date.now() & 0xffffffff, modos = DESAFIO_PADR
     bencaos: {},               // id da bênção -> nível escolhido
     escolha: null,             // { opcoes: [id, id, id] } enquanto o jogador decide
 
-    campos: CAMPOS.map((c) => ({
+    campos: camposDoBioma(bioma).map((c) => ({
       ...c,
       nectar: c.nectarMax,
       florada: 0,              // segundos restantes de florada neste campo
-      alocadas: c.alocadasInicial,
-      polenAlocadas: c.polenInicial,
+      // `?? 0`: um campo de bioma novo sem estes valores virava `undefined`,
+      // e daí toda conta de vaga saía NaN sem ninguém reclamar.
+      alocadas: c.alocadasInicial ?? 0,
+      polenAlocadas: c.polenInicial ?? 0,
       upgrades: { sustentavel: 0, rota: 0, ogm: 0, posto: 0 },
     })),
   };
