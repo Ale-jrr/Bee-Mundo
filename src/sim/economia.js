@@ -362,9 +362,16 @@ export const META = {
   // arredondado e forçado a subir todo ano (meta que cai de um ano para o
   // outro parece defeito, mesmo quando a produção cai). Ver docs/BALANCE.md.
   //
+  // O Ano 1 é o único frouxo (1,8× na média) e é de propósito: com três
+  // abelhas, a sorte do começo faz a produção variar quase o dobro entre
+  // sementes (570 a 1.025 medidos), e uma meta apertada ali seria loteria.
+  //
+  // O salto do Ano 1 para o 2 é grande porque o jogo é assim: a colônia sai de
+  // três abelhas para trinta. O degrau é o jogo, não um erro de tabela.
+  //
   // Resultado: folga entre 1,3× e 1,5× em **todos** os nove anos. Nenhum ano
   // de graça, e o último é o mais apertado.
-  porAno: [70, 280, 620, 1150, 1500, 1700, 1900, 2050, 2200],
+  porAno: [480, 3100, 3750, 4600, 4900, 5400, 5700, 5950, 6300],
 };
 
 export function metaDoAno(ano) {

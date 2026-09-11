@@ -1151,3 +1151,51 @@ Ao mexer em qualquer coisa que afete produção, refaça a tabela:
 2. divida cada ano pela folga-alvo (1,4 hoje);
 3. arredonde e force a subir;
 4. rode `medirBalanco` e confira que a folga ficou na faixa.
+
+## Estação de 3 min e meio, florada de 1 min
+
+| | antes | agora |
+| --- | --- | --- |
+| estação | 90 s | **210 s** |
+| ano | 6 min | **14 min** |
+| partida (9 anos) | 54 min | **126 min** |
+| florada | 25 s | **60 s** |
+
+A florada passou a ocupar pouco menos de um terço da estação — tempo de mudar
+a escalação e colher o ganho, sem virar o estado normal do campo.
+`folgaParaInverno` subiu de 20 para 70 junto: precisa caber a florada inteira
+antes da virada, senão ela é cortada no meio, que é pior que não ter havido.
+
+### A produção triplicou, e a tabela foi refeita
+
+Com a estação 2,3× mais longa, a produção por ano saltou de
+`102, 500, 856, 1623, 2147, 2624, 2752, 2850, 2960` para
+`844, 4390, 5219, 6442, 6819, 7550, 7929, 8133, 8812` (média de 3 sementes).
+
+Nova tabela, fechada pela mesma receita (média ÷ 1,4, monotônica, e nenhuma
+semente abaixo de 1,0):
+
+```js
+META.porAno = [480, 3100, 3750, 4600, 4900, 5400, 5700, 5950, 6300]
+```
+
+| ano | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| folga média | 1,76 | 1,42 | 1,39 | 1,40 | 1,39 | 1,40 | 1,39 | 1,37 | 1,40 |
+| folga da pior semente | 1,19 | 1,31 | 1,29 | 1,35 | 1,34 | 1,37 | 1,34 | 1,29 | 1,35 |
+
+O Ano 1 é o único frouxo, de propósito: com três abelhas a sorte do começo
+faz a produção variar quase o dobro entre sementes (570 a 1.025 medidos), e
+uma meta apertada ali seria loteria.
+
+### O robô virou peças
+
+Nove anos são 7.560 s de jogo, e rodar isso de uma vez estoura o tempo de uma
+chamada de console. `criarPartida` / `avancarPartida` / `resultadoDaPartida`
+permitem medir em pedaços; `jogarPartida` continua existindo, composta delas.
+
+Os autotestes do robô passaram a derivar as durações de `SEGUNDOS_POR_ANO`:
+com a estação em 210 s, o antigo `tetoSegundos: 700` deixou de conter um ano
+inteiro e os testes passariam a checar um histórico vazio. E a **partida
+inteira saiu da suíte** — ela levaria minutos; quem cobre isso é
+`medirBalanco`, rodado à mão, que já reporta `inconclusivas`.

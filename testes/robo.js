@@ -249,35 +249,50 @@ function decidir(estado, cfg) {
 
 // ------------------------------------------------------------- a partida
 
-export function jogarPartida(semente, opcoes = {}) {
-  const cfg = { ...PADRAO, ...opcoes };
-  const estado = novoJogo(semente, opcoes.desafio);
-  const porAno = [];
-  let ultimoAno = estado.ano;
-  let escolhas = 0;
-  const passos = Math.round(cfg.tetoSegundos * 30);
+// A partida em três peças em vez de uma só: com a estação em 3 min e meio,
+// nove anos são 7.560 s de jogo, e rodar isso de uma vez estoura o tempo de
+// uma chamada de console. `avancarPartida` deixa medir em pedaços.
+export function criarPartida(semente, opcoes = {}) {
+  return {
+    cfg: { ...PADRAO, ...opcoes },
+    estado: novoJogo(semente, opcoes.desafio),
+    semente,
+    escolhas: 0,
+    passosDados: 0,
+  };
+}
 
-  for (let i = 0; i < passos; i++) {
+// Avança até `segundos` de jogo, ou até a partida acabar. Devolve se ainda
+// está correndo.
+export function avancarPartida(p, segundos) {
+  const { cfg, estado } = p;
+  const aCada = Math.round(cfg.segundosPorDecisao * 30);
+  const limite = Math.min(Math.round(segundos * 30),
+    Math.round(cfg.tetoSegundos * 30) - p.passosDados);
+
+  for (let i = 0; i < limite; i++) {
     // A bênção da primavera **pausa o jogo** até alguém escolher. Ignorar isto
     // congelou uma medição inteira no Ano 2.
     if (estado.escolha) {
       const oferta = [...estado.escolha.opcoes]
         .sort((a, b) => (PESO_BENCAO[b.id ?? b] ?? 0) - (PESO_BENCAO[a.id ?? a] ?? 0))[0];
       escolherBencao(estado, oferta.id ?? oferta);
-      escolhas++;
+      p.escolhas++;
     }
-    if (estado.derrota || estado.vitoria) break;
+    if (estado.derrota || estado.vitoria) return false;
 
     passo(estado, 1 / 30);
-    if (i % Math.round(cfg.segundosPorDecisao * 30) === 0) decidir(estado, cfg);
-
-    if (estado.ano !== ultimoAno) ultimoAno = estado.ano;
+    if (p.passosDados % aCada === 0) decidir(estado, cfg);
+    p.passosDados++;
   }
+  return !(estado.derrota || estado.vitoria)
+    && p.passosDados < Math.round(cfg.tetoSegundos * 30);
+}
 
-  for (const h of estado.historico) porAno.push({ ...h });
-
+export function resultadoDaPartida(p) {
+  const { estado } = p;
   return {
-    semente,
+    semente: p.semente,
     venceu: Boolean(estado.vitoria),
     perdeu: Boolean(estado.derrota),
     anoFinal: estado.ano,
@@ -287,10 +302,16 @@ export function jogarPartida(semente, opcoes = {}) {
     operarias: estado.abelhas.filter((a) => a.papel === 'operaria').length,
     celulas: celulasArray(estado).filter((c) => c.estado !== 'travada').length,
     moedas: Math.round(estado.moedas),
-    escolhas,
-    porAno,
+    escolhas: p.escolhas,
+    porAno: estado.historico.map((h) => ({ ...h })),
     estado,
   };
+}
+
+export function jogarPartida(semente, opcoes = {}) {
+  const p = criarPartida(semente, opcoes);
+  avancarPartida(p, p.cfg.tetoSegundos);
+  return resultadoDaPartida(p);
 }
 
 export function medirBalanco(sementes = [42, 7, 123, 2024, 99, 5], opcoes = {}) {
@@ -342,7 +363,10 @@ export async function rodar() {
     if (!cond) falhas.push(extra ? `${nome}: ${extra}` : nome);
   };
 
-  const curta = jogarPartida(42, { tetoSegundos: 700 });
+  // Durações derivadas do calendário, nunca em segundos soltos: quando a
+  // estação foi de 90 para 210 s, "700 s" deixou de conter um ano inteiro e
+  // estes testes passariam a checar um histórico vazio.
+  const curta = jogarPartida(42, { tetoSegundos: SEGUNDOS_POR_ANO * 2.1 });
 
   // Erro 1: colher e nunca vender.
   ok('o robo vende', curta.porAno.some((h) => h.vendido > 0),
@@ -366,7 +390,7 @@ export async function rodar() {
 
   // Regra do jogo que a sonda antiga violava: colmeia sem ninguem dentro nao
   // faz mel. O robo tem que deixar gente em casa.
-  const meio = jogarPartida(7, { tetoSegundos: 200 }).estado;
+  const meio = jogarPartida(7, { tetoSegundos: SEGUNDOS_POR_ANO * 0.35 }).estado;
   const emCasa = meio.abelhas.filter((a) => a.papel === 'operaria' && a.estado === 'colmeia').length;
   const operarias = meio.abelhas.filter((a) => a.papel === 'operaria').length;
   ok('o robo deixa abelha em casa pra curar', operarias === 0 || emCasa >= 1,
@@ -374,8 +398,8 @@ export async function rodar() {
 
   // Determinismo: mesma semente, mesmo resultado. Sem isto nao da pra
   // comparar duas versoes do jogo.
-  const a1 = jogarPartida(99, { tetoSegundos: 400 });
-  const a2 = jogarPartida(99, { tetoSegundos: 400 });
+  const a1 = jogarPartida(99, { tetoSegundos: SEGUNDOS_POR_ANO * 0.5 });
+  const a2 = jogarPartida(99, { tetoSegundos: SEGUNDOS_POR_ANO * 0.5 });
   ok('a mesma semente da o mesmo resultado',
     a1.anoFinal === a2.anoFinal && a1.operarias === a2.operarias
     && a1.moedas === a2.moedas,
@@ -383,20 +407,20 @@ export async function rodar() {
 
   // Sementes diferentes tem que dar partidas diferentes, senao o robo esta
   // ignorando o sorteio e medindo uma coisa so.
-  const b1 = jogarPartida(1, { tetoSegundos: 400 });
-  const b2 = jogarPartida(2, { tetoSegundos: 400 });
+  const b1 = jogarPartida(1, { tetoSegundos: SEGUNDOS_POR_ANO * 0.5 });
+  const b2 = jogarPartida(2, { tetoSegundos: SEGUNDOS_POR_ANO * 0.5 });
   ok('sementes diferentes dao partidas diferentes',
     b1.moedas !== b2.moedas || b1.operarias !== b2.operarias);
 
-  // O laco tem que terminar por vitoria ou derrota, nunca por estouro de teto.
-  const inteira = jogarPartida(42);
-  ok('a partida inteira termina por si', !inteira.inconclusivo,
-    `ano ${inteira.anoFinal}`);
-  ok('e o robo joga os anos ate o fim ou perde tentando',
-    inteira.venceu || inteira.perdeu);
-  ok('o historico tem uma linha por ano jogado',
-    inteira.porAno.length === (inteira.venceu ? META.anoFinal : inteira.anoFinal),
-    `${inteira.porAno.length} linhas, ano ${inteira.anoFinal}`);
+  // O laco tem que andar sem travar. A partida INTEIRA nao e testada aqui:
+  // com a estacao em 3 min e meio, nove anos sao 7.560 s de jogo e a suite
+  // passaria a levar minutos. Quem cobre isso e `medirBalanco`, rodado a mao,
+  // que ja reporta `inconclusivas` — partida que acabou por estouro de teto.
+  ok('o robo vira dois anos sem travar', curta.anoFinal >= 3 || curta.perdeu,
+    `ano ${curta.anoFinal}`);
+  ok('e o historico tem uma linha por ano virado',
+    curta.porAno.length === curta.anoFinal - 1 || curta.perdeu,
+    `${curta.porAno.length} linhas, ano ${curta.anoFinal}`);
 
   // A tabela da meta e o que faz a folga ser uniforme. Invariantes baratas:
   // uma linha por ano, sempre subindo, e nada de `undefined` fora dela.

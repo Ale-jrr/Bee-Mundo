@@ -9,7 +9,10 @@ import { tentarEvento } from './eventos.js';
 // isso que a torna uma decisão: mudar a turma custa a viagem que já estava em
 // curso, e o campo que floresce pode ser justamente o mais perigoso.
 export const FLORADA = {
-  duracao: 25,
+  // Um minuto. A estação tem 3 min e meio, então a florada ocupa pouco menos
+  // de um terço dela: tempo de mudar a escalação e colher o ganho, sem virar
+  // o estado normal do campo.
+  duracao: 60,
   // Intervalos quase dobrados: com cinco sistemas de evento correndo juntos, o
   // que era razoável sozinho virava um evento a cada 30 s no total.
   intervaloMin: 170,
@@ -18,7 +21,9 @@ export const FLORADA = {
   reserva: 1.5,       // e do néctar que o campo comporta
   // Não começa uma florada que morreria na virada do inverno: prometer uma
   // oportunidade e tirá-la em cinco segundos é pior que não prometer.
-  folgaParaInverno: 20,
+  // Precisa caber a florada inteira antes do inverno, senão ela é cortada no
+  // meio — que é pior que não ter acontecido.
+  folgaParaInverno: 70,
 };
 
 export function campoEmFlorada(estado) {
