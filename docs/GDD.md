@@ -1053,3 +1053,31 @@ de folga no Ano 1.
 > Ressalva: fechados com **uma semente e só o Ano 1**. O inverno do sul e a
 > rebrota lenta da caatinga mordem mais tarde — valem remedir na partida
 > inteira.
+
+### 9.30 Card de bioma — paisagem e características
+
+O bioma é a escolha que muda o jogo inteiro — campos, clima e espécie — e
+estava sendo apresentado numa pílula com duas linhas de texto, igual às
+escolhas pequenas. Ganhou card próprio (`ui/biomas.js`), com três informações
+na ordem em que o olho pega:
+
+1. **a paisagem**, que é o que identifica o bioma antes de ler qualquer coisa;
+2. **nome e espécie**, porque escolher caatinga é escolher jandaira;
+3. **as duas características** que de fato mudam a partida — temperatura e
+   rebrota — em linguagem de jogador: “7° mais quente”, “campo repõe 50%”,
+   e não “temperatura: +7”.
+
+As paisagens ficam em `render/paisagens.js`, **desenhadas em código** como todo
+o resto — não há um único arquivo de imagem no projeto. O que cada uma precisa
+entregar em ~52 px é reconhecimento imediato, e ele vem da **silhueta**, não da
+cor: mandacaru com braços, araucária em guarda-chuva, copa larga e torta do
+cerrado, copa densa em camadas da mata. Verde e céu são parecidos entre si e
+não distinguiriam nada.
+
+As cores são próprias, e não da paleta da estação: o card descreve o bioma, e
+não o momento da partida em que ele está sendo escolhido.
+
+Detalhe que voltou a morder: **“MATA ATLÂNTICA” em caixa alta não cabia** e
+`rotulo` corta em silêncio. O nome agora é medido com `larguraRotulo` antes de
+desenhar e encolhe proporcionalmente — a mesma correção que o rodapé da dica
+de ação (§ 9.20) já tinha precisado.

@@ -5,7 +5,8 @@ import { desenharChips, alturaDosChips } from './desafios.js';
 import {
   DESAFIO_PADRAO, DURACOES, DURACAO_PADRAO, DIFICULDADES, DIFICULDADE_PADRAO,
 } from '../sim/desafios.js';
-import { BIOMAS, BIOMA_PADRAO, ESPECIES } from '../sim/biomas.js';
+import { BIOMA_PADRAO } from '../sim/biomas.js';
+import { desenharCardsDeBioma, alturaDosCards } from './biomas.js';
 import { relogio } from '../sim/estacoes.js';
 import { ler as lerConquistas } from '../core/conquistas.js';
 import { mudo } from '../render/som.js';
@@ -92,16 +93,14 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
   cursor += d.hBotao + d.gap + d.respiro;
 
   // O bioma vem primeiro: é o que muda o jogo de verdade — campos, clima e
-  // espécie — e as outras escolhas se leem em cima dele. O rótulo mostra a
-  // abelha junto, porque escolher caatinga é escolher jandaira.
-  const biomaAtual = BIOMAS[ui.biomaEscolhido ?? BIOMA_PADRAO] ?? BIOMAS[BIOMA_PADRAO];
-  rotulo(ctx, `bioma · ${ESPECIES[biomaAtual.especie]?.nome ?? ''}`, x + d.pad, cursor + d.hRotulo / 2, {
+  // espécie. Tem card próprio, com paisagem e características, porque duas
+  // linhas de texto não davam conta de mostrar uma escolha desse tamanho.
+  rotulo(ctx, 'bioma', x + d.pad, cursor + d.hRotulo / 2, {
     tamanho: Math.max(9, 10 * d.esc), cor: pal.css('suave'), espaco: 2.2,
   });
   cursor += d.hRotulo + d.respiro;
-  cursor += desenharChips(ctx, pal, x + d.pad, cursor, l - d.pad * 2,
-    ui.biomaEscolhido ?? BIOMA_PADRAO, 'inicio:bioma',
-    { tabela: BIOMAS, colunas: 2, altura: 46, travado: () => false });
+  cursor += desenharCardsDeBioma(ctx, pal, x + d.pad, cursor, l - d.pad * 2,
+    ui.biomaEscolhido ?? BIOMA_PADRAO, 'inicio:bioma');
   cursor += d.respiro;
 
   rotulo(ctx, 'duração', x + d.pad, cursor + d.hRotulo / 2, {
@@ -175,7 +174,7 @@ function medir(m, esc, podeContinuar) {
     + (podeContinuar ? hBotao + gap : 0)
     + hBotao + gap                                  // começar / novo jogo
     + hBotao + gap + respiro                        // tutorial
-    + (hRotulo + respiro + alturaDosChips(4, 2, 46) + respiro)   // bioma
+    + (hRotulo + respiro + alturaDosCards() + respiro)           // bioma
     + (hRotulo + respiro + alturaDosChips(3, 3, 34) + respiro)   // duração
     + (hRotulo + respiro + alturaDosChips(4, 4, 34) + respiro)   // dificuldade
     + hRotulo + respiro + alturaDosChips() + gap    // desafios
