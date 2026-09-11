@@ -1,5 +1,7 @@
 # Balanceamento
 
+Índice em [[Colmeia]] · o porquê de cada sistema no [[GDD]] · os arquivos em [[Mapa do código]]
+
 Todos os números vivem em `src/sim/economia.js`. Este arquivo explica o
 raciocínio; o código guarda os valores. Nada aqui está fechado — a fase 4 do
 roadmap é justamente rodar a curva até ela fechar.

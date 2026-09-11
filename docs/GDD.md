@@ -1,5 +1,7 @@
 # Colmeia — Documento de Design
 
+Índice em [[Colmeia]] · os arquivos em [[Mapa do código]] · os números em [[BALANCE]]
+
 **Gênero:** gestão econômica em tempo real, sessão curta, com camada idle.
 **Alvo:** navegador (protótipo e validação) → Godot 4 / mobile (produto).
 **Fantasia:** você é a colônia. A cota anual de mel cresce 55% ao ano.
@@ -448,7 +450,10 @@ O ritmo também conta: a cria respira devagar no começo e se mexe cada vez mais
 perto de nascer, com fase própria por célula e por ovo — três crias respirando
 em uníssono pareceriam um relógio, não uma ninhada.
 
-## 9. As catorze ideias
+## 9. O que veio depois
+
+Começou como "as catorze ideias" e passou de vinte e nove. O número da
+seção ficou; a conta, não.
 
 ### 9.1 Polinização paga — `ui/campos.js`
 A mecânica existia inteira em `acoes.js` desde sempre e **nunca teve botão**.

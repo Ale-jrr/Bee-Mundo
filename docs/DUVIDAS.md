@@ -1,5 +1,7 @@
 # Dúvidas de mecânica — respondidas
 
+Índice em [[Colmeia]] · o design completo no [[GDD]]
+
 Respostas do Mayk em 2026-09-09. Todas já implementadas.
 
 | # | Pergunta | Resposta | Onde vive |
