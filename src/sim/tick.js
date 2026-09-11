@@ -355,6 +355,11 @@ function depositar(estado, variedade, quantidade) {
 // células com néctar, que é onde o mel é feito. A rainha vagueia e põe onde para.
 function atualizarPasseio(estado, dt, estacao) {
   const abertas = celulasArray(estado).filter((c) => c.estado !== 'travada');
+  // Uma varredura por quadro, e não uma por abelha: com 140 operárias o
+  // segundo jeito é O(n²) e derrubou o passo do jogo pela metade.
+  // `proximoDestino` vai somando nela quem acabou de escolher, então duas
+  // abelhas que decidem no mesmo quadro também não se atropelam.
+  const ocupados = destinosOcupados(estado);
   if (!abertas.length) return;
 
   // Ar abafado atrasa tudo o que acontece dentro do favo, e o ar seco adianta
@@ -416,7 +421,7 @@ function atualizarPasseio(estado, dt, estacao) {
     // o próximo destino.
     if (iniciarTrabalho(estado, abelha)) continue;
 
-    abelha.para = proximoDestino(estado, abelha, abertas, prontaParaPor(estado));
+    abelha.para = proximoDestino(estado, abelha, abertas, prontaParaPor(estado), ocupados);
 
     // Só descansa quem não tem o que fazer. Ir buscar pólen também é ter o que
     // fazer — antes só carregar contava, e a ida ao silo saía pausada.
@@ -533,7 +538,7 @@ function prontaParaPor(estado) {
     && ritmoDeEclosao(estado.clima.temperatura) >= NINHADA.ritmoMinimoParaPor;
 }
 
-function proximoDestino(estado, abelha, abertas, rainhaQuerPor) {
+function proximoDestino(estado, abelha, abertas, rainhaQuerPor, ocupados) {
   // Nunca escolhe a célula onde já está: com um silo só, a operária ficava
   // parada em cima dele porque era sempre o destino preferido.
   const outras = abertas.filter((c) => chave(c.q, c.r) !== abelha.de);
@@ -554,17 +559,55 @@ function proximoDestino(estado, abelha, abertas, rainhaQuerPor) {
     return chaveSorteada(estado, fonte, outras);
   }
 
-  // Só escolhe mel que consegue pagar; se faltar pólen, completa a bolsa.
-  const cuidar = outras.filter((c) => podeCurarCom(estado, abelha, c));
+  // Só escolhe mel que consegue pagar, e só o que ninguém já pegou; se faltar
+  // pólen, completa a bolsa.
+  const cuidar = outras.filter((c) => podeCurarCom(estado, abelha, c)
+    && !ocupados.cura.has(chave(c.q, c.r)));
   if (cuidar.length) {
     const maisCheia = cuidar.reduce((m, c) => c.nectar > m.nectar ? c : m, cuidar[0]);
-    return chave(maisCheia.q, maisCheia.r);
+    const escolhida = chave(maisCheia.q, maisCheia.r);
+    ocupados.cura.add(escolhida);
+    return escolhida;
   }
   const fontes = outras.filter((c) => c.estado === 'silo' && c.polen > 0);
   if (abelha.polen < TRABALHO.capacidadePolen && fontes.length) {
-    return chaveSorteada(estado, fontes, outras);
+    const vagas = fontes.filter((c) => !ocupados.silos.has(chave(c.q, c.r)));
+    const escolhida = chaveSorteada(estado, vagas.length ? vagas : fontes, outras);
+    ocupados.silos.add(escolhida);
+    return escolhida;
   }
   return chaveSorteada(estado, outras, outras);
+}
+
+// Para onde as outras abelhas já estão indo, ou o que já estão fazendo.
+//
+// Sem isto todas escolhiam a mesma célula — a mais cheia é sempre a mesma para
+// todo mundo — e só a primeira a chegar fazia mel. As outras chegavam com o
+// pólen na bolsa, encontravam a célula já madura e não tinham o que fazer ali:
+// a viagem inteira se perdia, e quanto maior a colônia, mais se perdia.
+//
+// Os dois casos não são iguais, e por isso são tratados diferente:
+//
+//   cura  — **bloqueia**: uma célula só pode ser fechada por uma abelha;
+//   silo  — **desprefére**: o silo atende várias, mas mandar três na mesma
+//           gaveta esvazia ela na cara das duas últimas. Se todos estiverem
+//           ocupados, ela vai assim mesmo em vez de ficar parada.
+function destinosOcupados(estado) {
+  const cura = new Set();
+  const silos = new Set();
+  for (const a of estado.abelhas) {
+    if (a.papel !== 'operaria') continue;
+    if (a.estado !== 'colmeia') continue;
+    if (a.trabalho?.tipo === 'cura') { cura.add(a.de); continue; }
+    if (a.trabalho?.tipo === 'polen') { silos.add(a.de); continue; }
+    const destino = a.para;
+    if (!destino || destino === a.de) continue;
+    const celula = estado.celulas[destino];
+    if (!celula) continue;
+    if (celula.estado === 'nectar' && a.polen > 0) cura.add(destino);
+    else if (celula.estado === 'silo') silos.add(destino);
+  }
+  return { cura, silos };
 }
 
 function chaveSorteada(estado, fonte, reserva) {

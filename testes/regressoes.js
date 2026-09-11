@@ -59,5 +59,35 @@ export function rodar() {
   ok('preços respeitam limites', s.mercado.acacia === 0.55 && s.mercado.trevo === 1.45);
   try { for (let i=0; i<300; i++) passo(s,1/30); ok('save recuperado continua simulação', true); }
   catch { ok('save recuperado continua simulação', false); }
+  // Duas abelhas na mesma célula. `proximoDestino` escolhia sempre a célula
+  // mais cheia, que é a mesma para todo mundo: todas com pólen na bolsa iam ao
+  // mesmo lugar, a primeira fechava, e as outras chegavam e não tinham o que
+  // fazer ali. A viagem inteira se perdia, e quanto maior a colônia, pior.
+  const favo = novoJogo(42);
+  for (let i = 0; i < 10; i++) {
+    const t = Object.values(favo.celulas).find((c) => c.estado === 'travada');
+    if (t) A.liberarCelula(favo, t);
+  }
+  for (let i = 0; i < 8; i++) A.nascerAbelha(favo);
+  for (const a of favo.abelhas) {
+    if (a.papel === 'operaria') Object.assign(a, { polen: 6, estado: 'colmeia', trabalho: null });
+  }
+  const curaveis = Object.values(favo.celulas).filter((c) => c.estado === 'vazia').slice(0, 2);
+  for (const cel of curaveis) {
+    Object.assign(cel, { estado: 'nectar', variedade: 'silvestre', nectar: 9, cura: 0 });
+  }
+  for (let i = 0; i < 30 * 3; i++) passo(favo, 1 / 30);
+
+  const porAlvo = {};
+  for (const a of favo.abelhas) {
+    if (a.papel !== 'operaria' || a.estado !== 'colmeia') continue;
+    const alvo = a.trabalho?.tipo === 'cura' ? a.de : (a.polen > 0 ? a.para : null);
+    if (!alvo) continue;
+    if (favo.celulas[alvo]?.estado !== 'nectar') continue;
+    porAlvo[alvo] = (porAlvo[alvo] ?? 0) + 1;
+  }
+  const empilhadas = Math.max(0, ...Object.values(porAlvo));
+  ok('nunca duas abelhas mirando a mesma celula de cura', empilhadas <= 1);
+
   return { total, falhas: detalhes.length, detalhes };
 }

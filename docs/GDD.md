@@ -874,3 +874,30 @@ Detalhes:
 De quebra, `gastarMel` saiu de dentro de `alimentarNinhada`: três ações
 (alimentar, coroar, encomendar) faziam o mesmo laço de gastar do mel mais
 barato primeiro.
+
+### 9.26 Uma abelha por célula — correção
+
+`proximoDestino` escolhia, entre as células que a abelha consegue curar, **a
+mais cheia**. Como a mais cheia é a mesma para todo mundo, toda operária com
+pólen na bolsa ia para a mesma célula: a primeira a chegar fazia o mel, e as
+outras chegavam, encontravam a célula madura e não tinham o que fazer ali.
+
+Medido: 10 abelhas com pólen e 2 células curáveis → as 10 mirando a mesma.
+Depois da correção, **uma por célula**.
+
+`destinosOcupados(estado)` resolve, e trata os dois casos diferente:
+
+- **cura bloqueia** — uma célula só pode ser fechada por uma abelha;
+- **silo desprefére** — o silo atende várias, mas mandar três na mesma gaveta
+  esvazia ela na cara das duas últimas. Se todos estiverem ocupados, ela vai
+  assim mesmo em vez de ficar parada.
+
+Detalhe de desempenho: a varredura é **uma por quadro**, não uma por abelha.
+Com 140 operárias o segundo jeito é O(n²) e derrubou o passo do jogo pela
+metade. `proximoDestino` vai somando no conjunto quem acabou de escolher, para
+que duas abelhas que decidem no mesmo quadro também não se atropelem.
+
+Impacto na produção: **dentro do ruído entre sementes** (+1%, +25%, −4%, −8%,
+−6%, +13%, +2%, +1%, +3% ano a ano). A perda existia, mas a colônia não estava
+presa nela — a tabela da meta continua válida, e as seis sementes vencem com
+folga de 1,06 a 1,47.
