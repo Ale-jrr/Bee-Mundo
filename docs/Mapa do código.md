@@ -51,6 +51,7 @@ num laço de console para medir balanço — ver [[BALANCE]].
 | `rng.js` | gerador com semente, guardado *dentro* do estado |
 | `conquistas.js` | o que sobrevive ao recomeço (melhor ano, desafios liberados) |
 | `ovos.js` | identidade dos ovos dentro da ninhada |
+| `vitrine.js` | a colmeia viva atrás da tela de início — partida descartável, cópia da do jogador |
 
 ## `render/` — o mundo
 
@@ -68,7 +69,8 @@ num laço de console para medir balanço — ver [[BALANCE]].
 | --- | --- |
 | `hud.js` | barra de cima, fileira de ação, boosts. Os ícones são desenhados à mão |
 | `campos.js` | o painel central: turmas, vagas e melhorias |
-| `inicio.js` | a tela de início e os quatro seletores de partida |
+| `inicio.js` | a tela de início: página de duas colunas em tela larga, coluna única no celular |
+| `biomas.js` | os cards de bioma, com paisagem. Deitado ou em pé, conforme a forma do card |
 | `layout.js` | **todas as medidas de tela.** `medidas(L, A)` |
 | `zonas.js` | zonas de toque, reconstruídas a cada quadro. **A última registrada ganha o hit-test** |
 | `abelhas.js` · `rax.js` · `historico.js` · `ninhada.js` · `rainha.js` | os outros painéis |
@@ -80,7 +82,7 @@ Sem runner: cada arquivo exporta `rodar()` e roda no console.
 
 | arquivo | cobre |
 | --- | --- |
-| `funcionalidades.js` | 391 asserções — o grosso de tudo |
+| `funcionalidades.js` | 452 asserções — o grosso de tudo |
 | **`robo.js`** | o jogador-robô e **os testes do próprio robô** |
 | `save.js` · `regressoes.js` | persistência e bugs que já voltaram |
 | `predadores.js` · `frio.js` · `inverno.js` · `ovos.js` | vespas, morte no frio, inverno, ninhada |
@@ -99,3 +101,4 @@ Sem runner: cada arquivo exporta `rodar()` e roda no console.
 | mudar o que a abelha faz dentro do favo | `proximoDestino` e `iniciarTrabalho` em `sim/tick.js` |
 | acrescentar um botão | `ACOES` em `ui/hud.js` + um `case` em `main.js` |
 | guardar um campo novo no save | `core/save.js`, **nos dois lugares** |
+| mexer na tela de abertura | `ui/inicio.js` — `plano()` decide o arranjo, `medir()` tem as alturas |

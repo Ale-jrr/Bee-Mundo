@@ -25,7 +25,7 @@ inverno, às vespas e à meta de cada ano.
 
 ## Estado atual
 
-**v0.15.0** · 529 testes, 0 falhas · repositório em
+**v0.16.0** · 590 testes, 0 falhas · repositório em
 [Ale-jrr/Bee-Mundo](https://github.com/Ale-jrr/Bee-Mundo)
 
 Uma partida é escolhida em três eixos independentes, mais o bioma:
@@ -40,6 +40,11 @@ Uma partida é escolhida em três eixos independentes, mais o bioma:
 Cada bioma traz seus campos, seu clima e **sua espécie de abelha** —
 africanizada, jandaíra, mandaçaia ou carníola. Abelha sem ferrão não para vespa
 na porta, e é isso que muda o jogo de verdade entre um bioma e outro.
+
+A escolha acontece numa **página de abertura**: duas colunas em tela larga
+(marca e botões à esquerda, as quatro escolhas à direita), coluna única no
+celular. O cartão é de vidro e, atrás dele, uma colmeia roda de verdade — a
+sua, copiada, se houver save.
 
 ---
 

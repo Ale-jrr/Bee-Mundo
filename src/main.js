@@ -1,5 +1,6 @@
 import { enviarGuarda } from './sim/predadores.js';
 import { novoJogo } from './core/estado.js';
+import { novaVitrine, avancarVitrine } from './core/vitrine.js';
 import { salvar, carregar, apagar } from './core/save.js';
 import { passo } from './sim/tick.js';
 import { desenhar } from './render/cena.js';
@@ -521,6 +522,12 @@ document.addEventListener('visibilitychange', () => {
 
 let acumulado = 0;
 let anterior = performance.now();
+// A colmeia de vitrine, que roda atrás da tela de início. Criada no primeiro
+// quadro com a tela aberta: quem tem save e toca em continuar nunca paga por
+// ela. Seu acumulador é separado do da partida — sobra de um não pode virar
+// passo do outro.
+let vitrine = null;
+let acumuladoVitrine = 0;
 
 function quadro(agora) {
   const bruto = Math.min((agora - anterior) / 1000, MAX_QUADRO);
@@ -551,11 +558,26 @@ function quadro(agora) {
     desdeUltimoSave += bruto;
     if (desdeUltimoSave >= INTERVALO_SALVAR) gravar();
     ui.temSave = true;
+  } else if (!document.hidden && ui.tela === 'inicio') {
+    // A colmeia dele é o ponto de partida da vitrine, copiada: o fundo da tela
+    // de início passa a ser o próprio apiario, vivo.
+    if (!vitrine) vitrine = novaVitrine(ui.temSave ? estado : null);
+    acumuladoVitrine += bruto;
+    let guarda = 0;
+    while (acumuladoVitrine >= TICK && guarda++ < 240) {
+      vitrine = avancarVitrine(vitrine, TICK);
+      acumuladoVitrine -= TICK;
+    }
+    // Visível no console como `window.colmeiaVitrine`, do mesmo jeito que a
+    // partida é `window.colmeia`: os testes e as medições deste jogo rodam no
+    // console, e vitrine que não dá pra inspecionar não dá pra depurar.
+    window.colmeiaVitrine = vitrine;
   }
 
   // Abaixo disso o layout do HUD produz larguras negativas; nada a desenhar.
   atualizarSom(estado);
-  if (L > 320 && A > 240) desenhar(ctx, estado, L, A, bruto, ui);
+  const fundo = ui.tela === 'inicio' && vitrine ? vitrine : estado;
+  if (L > 320 && A > 240) desenhar(ctx, estado, L, A, bruto, ui, fundo);
   requestAnimationFrame(quadro);
 }
 requestAnimationFrame(quadro);

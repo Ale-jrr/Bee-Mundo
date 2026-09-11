@@ -51,7 +51,9 @@ import {
   BIOMAS, BIOMA_PADRAO, ESPECIES, especieDefende, deltaDoBioma, fatorDoBioma,
 } from '../src/sim/biomas.js';
 import { temperaturaAlvo } from '../src/sim/tick.js';
-import { ajustarParaCaber } from '../src/ui/inicio.js';
+import { ajustarAoEspaco, ESC_MAX } from '../src/ui/inicio.js';
+import { larguraDoCard, cardDeitado } from '../src/ui/biomas.js';
+import { novaVitrine, avancarVitrine } from '../src/core/vitrine.js';
 import { defensoras, enviarGuarda } from '../src/sim/predadores.js';
 import {
   BENCAOS, nivelBencao, totalBencao, bonusBencao, descontoBencao, fatorDoInverno,
@@ -1445,26 +1447,95 @@ export async function rodar() {
   ok('bioma e especie sobrevivem ao save',
     voltouBioma.bioma === 'caatinga' && voltouBioma.especie === 'jandaira');
 
-  // ------------------------------- 34. a tela de inicio cabe na tela
-  // Ja quebrou duas vezes: titulo por cima do subtitulo, e o cartao vazando
-  // por baixo depois que os cards de bioma entraram. As alturas de chip e card
-  // eram fixas, entao encolher a escala quase nao mudava o total.
+  // ------------------------------- 34. a tela de inicio usa a tela que tem
+  // Ja quebrou tres vezes, e cada assercao aqui e uma delas: titulo por cima do
+  // subtitulo; cartao vazando por baixo depois que os cards de bioma entraram; e
+  // — a mais recente — cartao encolhido no meio de uma tela de 1500px, com 1000
+  // deles de veu escuro em volta. Por isso nao se testa so se cabe: testa-se
+  // tambem que o espaco nao e desperdicado e que a paisagem do bioma nunca sai.
   for (const [L, A] of [[375, 812], [360, 640], [1280, 620], [1500, 920], [820, 1180]]) {
     for (const comSave of [false, true]) {
+      const onde = `${L}x${A}${comSave ? ' com save' : ''}`;
       const m = medidas(L, A);
       // `A - margem*2` e o tamanho PREFERIDO (margem igual em cima e embaixo).
       // O que precisa ser verdade e mais fraco: o desenho faz
       // `y = max(margem, (A-a)/2)`, entao o cartao aparece inteiro sempre que
       // `a <= A - margem`. Exigir a margem simetrica reprovava layout que
       // cabia na tela com folga embaixo.
-      const d = ajustarParaCaber(m, A - m.margem * 2, comSave);
-      const limite = A - m.margem;
-      ok(`o cartao de inicio cabe em ${L}x${A}${comSave ? ' com save' : ''}`,
-        d.a <= limite, `${Math.round(d.a)} de ${Math.round(limite)}`);
-      ok(`e o botao continua tocavel em ${L}x${A}${comSave ? ' com save' : ''}`,
-        d.hBotao >= 36, `${d.hBotao}`);
+      const cabe = A - m.margem * 2;
+      const p = ajustarAoEspaco(m, cabe, comSave);
+      ok(`o cartao de inicio cabe em ${onde}`,
+        p.a <= A - m.margem, `${Math.round(p.a)} de ${Math.round(A - m.margem)}`);
+      ok(`o cartao de inicio cabe na largura em ${onde}`,
+        p.l <= L - m.margem, `${Math.round(p.l)} de ${L}`);
+      ok(`e o botao continua tocavel em ${onde}`, p.hBotao >= 36, `${p.hBotao}`);
+      // Ou encheu a tela, ou parou no teto da escala. O que nao pode e sobrar
+      // espaco com tudo pequeno no meio, que era a reclamacao.
+      ok(`o cartao de inicio ocupa o espaco em ${onde}`,
+        p.a >= cabe * 0.8 || p.esc >= ESC_MAX - 0.01,
+        `${Math.round(p.a)} de ${cabe} com esc ${p.esc.toFixed(2)}`);
+      // A paisagem do bioma nunca sai: o card pode virar em pe, nunca chip.
+      const cardL = larguraDoCard(p.lDir, p.colunasBioma);
+      ok(`o card de bioma continua card em ${onde}`,
+        !p.compacto && cardL >= 60 && p.d.hCard >= 48,
+        `${Math.round(cardL)}x${p.d.hCard} em ${p.colunasBioma} colunas`);
     }
   }
+
+  // Tela larga virou pagina de duas colunas — e foi isso que tirou a pressao da
+  // altura. Enquanto o cartao era uma coluna de 420px, nenhuma tela baixa cabia.
+  const mLargo = medidas(1500, 920);
+  const largo = ajustarAoEspaco(mLargo, 920 - mLargo.margem * 2, true);
+  ok('tela larga abre a pagina em duas colunas',
+    largo.duasColunas && largo.l > 900, `${largo.duasColunas} com l=${largo.l}`);
+  ok('e ai o card de bioma fica deitado, com paisagem e caracteristicas',
+    cardDeitado(larguraDoCard(largo.lDir, largo.colunasBioma), largo.d.hCard));
+  ok('a coluna da marca nao vira barra',
+    largo.lEsq <= 400 && largo.lEsq >= 250, `${largo.lEsq}`);
+  const mFino = medidas(375, 812);
+  ok('celular continua em uma coluna so',
+    !ajustarAoEspaco(mFino, 812 - mFino.margem * 2, true).duasColunas);
+  // Crescer nao pode virar fonte gigante em coluna estreita: o teto vem da
+  // largura do chip de desafio, que carrega o texto mais apertado da tela.
+  ok('a escala tem teto', largo.esc <= ESC_MAX, `${largo.esc}`);
+
+  // ------------------------------- 35. a colmeia de vitrine
+  // O fundo da tela de inicio e uma partida de verdade rodando, para haver
+  // abelhas andando atras do vidro. O que nao pode, de jeito nenhum, e ela
+  // mexer na partida do jogador.
+  const dono = novoJogo(9);
+  for (let i = 0; i < 60; i++) passo(dono, 1 / 30);
+  // `salvoEm` é carimbado pelo próprio `serializar` com a hora de agora: entra
+  // zerado, senão a foto difere dela mesma e o teste acusa mudança que não houve.
+  const foto = (e) => JSON.stringify({ ...S.serializar(e), salvoEm: 0 });
+  const antesDoDono = foto(dono);
+  let vitrine = novaVitrine(dono);
+  ok('a vitrine parte da colmeia do jogador',
+    vitrine !== dono && Math.abs(vitrine.decorrido - dono.decorrido) < 0.001,
+    `${Math.round(vitrine.decorrido)} vs ${Math.round(dono.decorrido)}`);
+  const posicoes = () => vitrine.abelhas.map((a) => `${a.de}>${a.para}@${a.andar.toFixed(2)}`).join('|');
+  const antesDaVitrine = posicoes();
+  for (let i = 0; i < 120; i++) vitrine = avancarVitrine(vitrine, 1 / 30);
+  ok('a vitrine anda sozinha', posicoes() !== antesDaVitrine);
+  ok('e a partida do jogador nao anda junto', foto(dono) === antesDoDono);
+
+  // A bencao da primavera zera a velocidade e segura o passo. Sem alguem para
+  // escolher, a vitrine congelaria no primeiro ano — ela escolhe sozinha.
+  const bencaoQualquer = Object.keys(BENCAOS)[0];
+  vitrine.escolha = { opcoes: [{ id: bencaoQualquer, valor: BENCAOS[bencaoQualquer].min }] };
+  const paradoEm = vitrine.decorrido;
+  vitrine = avancarVitrine(vitrine, 1 / 30);
+  ok('a bencao da primavera nao congela a vitrine',
+    !vitrine.escolha && vitrine.decorrido > paradoEm);
+
+  // Partida acabada nao anda: clonar uma seria uma vitrine congelada.
+  const acabou = novoJogo(3);
+  acabou.derrota = true;
+  ok('vitrine nao clona partida encerrada', !novaVitrine(acabou).derrota);
+  const semBase = novaVitrine();
+  ok('sem save, a vitrine comeca uma colmeia propria',
+    semBase.abelhas.length > 0 && semBase.decorrido > 0,
+    `${semBase.abelhas.length} abelhas em ${Math.round(semBase.decorrido)}s`);
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

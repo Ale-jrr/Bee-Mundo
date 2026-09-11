@@ -1095,12 +1095,13 @@ Três correções, em ordem de importância:
    `ui/biomas.js` desenha em proporções do card em vez de pixels.
 2. **O ajuste itera.** As medidas têm piso (`Math.max`), então a altura não é
    proporcional à escala e um passo único erra o alvo.
-3. **Modo compacto.** Quando nem o menor tamanho cabe, o bioma vira chip e
-   perde a paisagem. Perder a paisagem é melhor que ter metade dos botões fora
-   do alcance.
+3. **Modo compacto.** Quando nem o menor tamanho cabe, o bioma virava chip e
+   perdia a paisagem.
 
-Medido depois: 1500×920 e 375×812 mostram os cards com paisagem; 1280×620 cai
-no compacto e cabe.
+Medido depois: 1500×920 e 375×812 mostravam os cards com paisagem; 1280×620
+caía no compacto e cabia.
+
+> **O item 3 não existe mais.** Ele resolvia o sintoma errado — ver § 9.32.
 
 #### O teste que eu escrevi errado primeiro
 
@@ -1113,3 +1114,91 @@ O que precisa ser verdade é mais fraco: o desenho faz
 `y = max(margem, (A - a) / 2)`, então o cartão aparece inteiro sempre que
 `a <= A - margem`. O teste reprovava por **1 pixel** um layout que cabia na
 tela com 18 de folga — e eu quase fui cortar mais espaçamento por causa disso.
+
+
+### 9.32 A tela de início virou página
+
+O ajuste da § 9.31 fazia o cartão **caber**, e era isso o problema: ele cabia
+encolhendo. Numa tela de 1500×920 o resultado era uma coluna de 420 px com tudo
+pequeno no meio e 1000 px de véu escuro em volta — e, quando a tela era baixa,
+os cards de bioma viravam chips e a paisagem sumia.
+
+O diagnóstico estava errado desde o começo. **Não sobrava conteúdo: sobrava
+largura sem uso.** Quatro eixos de escolha não cabem numa coluna única em
+altura nenhuma — mas cabem folgados em duas.
+
+#### Os dois arranjos
+
+| arranjo | quando | o que faz |
+| --- | --- | --- |
+| **página** | `L >= 880` e `A >= 430` | duas colunas: marca e botões à esquerda, as quatro escolhas à direita. Cartão até 1060 px |
+| **coluna** | o resto (celular) | a pilha de sempre, até 470 px |
+
+Em duas colunas o som e o rodapé ancoram no **pé** da coluna da marca, que é
+onde um menu de verdade põe as opções e a assinatura.
+
+#### Crescer, e não só encolher
+
+`ajustarAoEspaco` (era `ajustarParaCaber`) agora itera nos dois sentidos: se a
+altura sobra, a escala **sobe** até o cartão encostar no espaço disponível. O
+teto vem da largura do chip de desafio — ele carrega o texto mais apertado da
+tela (`Célula custa 80% a mais` em duas colunas), e portanto é ele quem diz até
+onde dá pra crescer sem estourar. Por cima, `ESC_MAX = 1,3`: acima disso o
+texto fica grande sem ficar melhor e as pílulas viram blocos.
+
+Medido: 1280×620 usa 98% da altura disponível em duas colunas; 375×812 usa 100%
+em uma; 1500×920 para no teto de escala com o cartão em 1060×712.
+
+#### A paisagem nunca mais sai
+
+No lugar do modo compacto, o card de bioma ganhou um segundo arranjo: **em pé**,
+com a paisagem em cima e o nome embaixo, escolhido pela forma do card
+(`cardDeitado`, largura < 2,1× a altura) e não por um modo da tela. Quando nem
+assim cabe — 360×640 com save —, os quatro biomas vão para **uma fileira de
+quatro**, ainda com paisagem. É o único degrau que sobrou, e ele não tira nada
+do que faz o card ser card.
+
+#### O fundo virou vidro
+
+O véu era `rgba(30, 22, 10, 0.62)` chapado: escondia a colmeia. Agora são duas
+camadas — um gradiente radial (0,24 no meio, 0,6 nas bordas) e o cartão em
+`hud` a 0,82. Dá pra ver o favo e as abelhas através do cartão sem o texto
+perder contraste.
+
+E o HUD sai de cena na tela de início: número de outra partida por cima da
+colmeia seria mentira (ver § 9.33).
+
+### 9.33 A colmeia de vitrine — `core/vitrine.js`
+
+O favo atrás da tela de início sempre esteve lá, mas **parado**: o relógio só
+anda em `tela === 'jogo'`. Atrás de um cartão de vidro, favo parado parece
+foto.
+
+A solução óbvia — rodar `passo()` no estado de verdade — é inaceitável: o ano
+do jogador viraria enquanto ele decide se continua. Então roda uma **partida
+descartável**, a vitrine, e o desenho da cena passou a receber dois estados:
+
+```js
+desenhar(ctx, estado, L, A, dt, ui, fundo)
+```
+
+`estado` é a partida (botão continuar, HUD, fim de partida) e `fundo` é o que
+vira cenário. Fora da tela de início os dois são o mesmo objeto.
+
+**Quando há save, a vitrine é a colmeia do próprio jogador**, copiada pelo
+serializador (que é profundo por construção) e posta pra viver. Quem volta vê o
+próprio apiário respirando atrás do vidro, do tamanho em que o deixou.
+
+Três cuidados, os três aprendidos com sondas que já travaram antes (ver
+[[BALANCE]]):
+
+1. `estado.escolha` — a bênção da primavera segura o `passo`. A vitrine escolhe
+   sozinha, senão congela no primeiro ano.
+2. `derrota`/`vitoria` também param o `passo`. Chegando num dos dois, ela
+   recomeça do zero (ninguém vende mel ali, então a meta do Ano 1 não é
+   cumprida: acontece depois de uns quinze minutos de tela aberta).
+3. Partida encerrada não é clonada — seria uma vitrine congelada.
+
+O teste que importa é um só: rodar a vitrine 120 passos e conferir que a foto
+serializada da partida do jogador **não mudou**. (Na primeira versão ele
+falhou por `salvoEm`, que o próprio `serializar` carimba com a hora de agora.)

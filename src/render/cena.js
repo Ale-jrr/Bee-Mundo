@@ -35,9 +35,13 @@ function zonaFundoAvisos(L, A) {
   zona('avisos:fundo', 0, 0, L, A);
 }
 
-export function desenhar(ctx, estado, L, A, dt, ui = {}) {
+// `fundo` e o estado desenhado como cenario. Normalmente e o proprio jogo; na
+// tela de inicio e a colmeia de vitrine, que roda de verdade para haver abelhas
+// andando atras do vidro sem o relogio da partida do jogador andar.
+export function desenhar(ctx, estado, L, A, dt, ui = {}, fundo = estado) {
   limparZonas();
-  const t = relogio(estado.decorrido);
+  const jogando = ui.tela !== 'inicio';
+  const t = relogio(fundo.decorrido);
   const pal = paletaAtual(t);
 
   // Fundo: gradiente radial suave, mais claro no alto à esquerda.
@@ -49,16 +53,19 @@ export function desenhar(ctx, estado, L, A, dt, ui = {}) {
 
   desenharParticulas(ctx, pal, t, L, A, dt);
 
-  const { cx, cy, tam } = geometriaFavo(estado, L, A, ui.camera);
+  const { cx, cy, tam } = geometriaFavo(fundo, L, A, ui.camera);
   // Enfeites atrás do favo: crescem com o que o jogador conquistou.
-  desenharOrnamentos(ctx, estado, pal, cx, cy, tam);
-  desenharFavo(ctx, estado, pal, cx, cy, tam);
-  desenharAbelhas(ctx, estado, pal, cx, cy, tam, L, A);
-  desenharAbelhasNoCampo(ctx, estado, pal, cx, cy, tam, L, A);
+  desenharOrnamentos(ctx, fundo, pal, cx, cy, tam);
+  desenharFavo(ctx, fundo, pal, cx, cy, tam);
+  desenharAbelhas(ctx, fundo, pal, cx, cy, tam, L, A);
+  desenharAbelhasNoCampo(ctx, fundo, pal, cx, cy, tam, L, A);
   // Depois das abelhas: a vespa passa por cima delas, que é a leitura certa
   // de quem está invadindo.
-  desenharVespas(ctx, estado, pal, cx, cy, tam, L, A);
-  desenharHud(ctx, estado, pal, t, L, A, ui);
+  desenharVespas(ctx, fundo, pal, cx, cy, tam, L, A);
+  // Na tela de início o HUD sai de cena: os números ali seriam os da vitrine,
+  // e número de outra partida por cima da colmeia é mentira. O que o jogador
+  // precisa ver atrás do vidro é o favo e as abelhas andando.
+  if (jogando) desenharHud(ctx, estado, pal, t, L, A, ui);
   // Os cartões de aviso não moram mais na tela: cinco empilhados cobriam o
   // favo, que é o que o jogador quer ver. Agora ficam atrás do sino e só
   // aparecem quando ele abre.
@@ -75,8 +82,10 @@ export function desenhar(ctx, estado, L, A, dt, ui = {}) {
     desenharEncomenda(ctx, estado, pal, L, A, rodape, ui);
   }
   desenharNinhada(ctx, estado, pal, L, A, ui);
-  desenharCamera(ctx, pal, L, A, ui);
-  desenharAviso(ctx, estado, pal, L, A);
+  if (jogando) {
+    desenharCamera(ctx, pal, L, A, ui);
+    desenharAviso(ctx, estado, pal, L, A);
+  }
 
   if (ui.painel === 'rax') desenharRax(ctx, estado, pal, t, L, A);
   if (ui.painel === 'campos') desenharCampos(ctx, estado, pal, t, L, A, ui);
