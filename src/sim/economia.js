@@ -164,10 +164,11 @@ export const NINHADA = {
 // pra ficar pronta, sendo que a tarefa em si dura 5 s. Aqui ela anda depressa e
 // a pausa é só um respiro de quem não tem o que fazer.
 export const PASSEIO = {
-  // 0,7 s por célula era corrida demais de se ver. Foi acelerado quando a
-  // tarefa de mel durava 5 s e a caminhada dominava o ciclo; com a tarefa em
-  // 20 s ela é uma fatia pequena e pode voltar a um passo natural.
-  segundosPorCelula: 1.0,
+  // 0,7 s por célula era corrida demais de se ver, 1,0 ainda parecia
+  // apressado. Com a estação em 3 min e meio, a caminhada é uma fatia pequena
+  // do ciclo e pode ter o ritmo de quem está trabalhando, não de quem está
+  // fugindo — dava pra ver o bando deslizando, e não andando.
+  segundosPorCelula: 1.8,
   // Pausa de quem está sem tarefa. Curta demais e a abelha fica vibrando de um
   // lado pro outro carregando pólen que não tem onde entregar; é o que dava a
   // impressão de que ela "carrega e não faz o mel".

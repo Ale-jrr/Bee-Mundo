@@ -901,3 +901,34 @@ Impacto na produção: **dentro do ruído entre sementes** (+1%, +25%, −4%, �
 −6%, +13%, +2%, +1%, +3% ano a ano). A perda existia, mas a colônia não estava
 presa nela — a tabela da meta continua válida, e as seis sementes vencem com
 folga de 1,06 a 1,47.
+
+### 9.27 Abelha viva — asa batendo, sombra e passo mais lento
+
+Três coisas deixavam a abelha com cara de adesivo deslizando pelo favo:
+
+**As asas eram duas elipses paradas.** Agora batem. A abelha de verdade bate a
+200 Hz, o que numa tela de 30 quadros vira tremida sem leitura nenhuma — o que
+lê como voo aqui é **~4 Hz**. A rainha bate mais devagar: é maior e quase não
+voa.
+
+Duas coisas fazem o bater ler como movimento, e não como piscar:
+
+- a asa **encurta** conforme gira (a elipse achata verticalmente), em vez de
+  só aparecer e sumir;
+- há um **rastro** — uma segunda asa mais fraca, defasada, que é o borrão.
+
+**Não havia sombra.** Agora há, desenhada antes do corpo e fora da escala da
+abelha. A distância e a suavidade dela são a **única pista de altura** que o
+jogo tem, porque o favo não tem perspectiva: quem está no ar projeta mais
+longe, mais largo e mais fraco; quem está andando no favo projeta colado.
+
+**Cada abelha tem fase própria** (`fase`, o id dela). Com todas no mesmo
+compasso o favo parece uma engrenagem, e não um bando.
+
+**O passo ficou mais lento**: `PASSEIO.segundosPorCelula` de 1,0 para **1,8**.
+Com a estação em 3 min e meio a caminhada é uma fatia pequena do ciclo e pode
+ter o ritmo de quem está trabalhando, não de quem está fugindo.
+
+Custo medido: **−10% de produção nos dois primeiros anos**, quase nada do Ano
+3 em diante — a caminhada pesa quando a colônia é pequena e o favo curto.
+A tabela da meta aguentou sem mudança: folga de 1,25 a 1,72 nos nove anos.

@@ -131,7 +131,8 @@ function desenharAbelhasNoCampo(ctx, estado, pal, cx, cy, tam, L, A) {
 
     ctx.save();
     ctx.globalAlpha = 1 - 0.45 * f;
-    desenharAbelha(ctx, x, y, escala, pal, false, null, abelha.talento);
+    // No campo ela está no ar: sombra longe e fraca.
+    desenharAbelha(ctx, x, y, escala, pal, false, null, abelha.talento, abelha.id, true);
     ctx.restore();
   }
 }
@@ -189,11 +190,12 @@ function desenharAbelhas(ctx, estado, pal, cx, cy, tam, L, A) {
       const volta = Math.max(0, (abelha.t - 0.7) / 0.3);
       const f = suave(ida) - suave(volta);
       desenharAbelha(ctx, x + (alvo.x - x) * f, y + (alvo.y - y) * f,
-        tam / 90, pal, abelha.papel === 'rainha', progresso, abelha.talento);
+        tam / 90, pal, abelha.papel === 'rainha', progresso, abelha.talento,
+        abelha.id, f > 0.05);
       continue;
     }
 
     desenharAbelha(ctx, x, y - voo + flutua, tam / 90, pal,
-      abelha.papel === 'rainha', progresso, abelha.talento);
+      abelha.papel === 'rainha', progresso, abelha.talento, abelha.id, voo > 0.5);
   }
 }

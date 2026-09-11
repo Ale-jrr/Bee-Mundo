@@ -335,10 +335,30 @@ function brilho(ctx, x, y, tam) {
 }
 
 // Abelha vetorial simples: corpo listrado, asas translúcidas, coroa se rainha.
-export function desenharAbelha(ctx, x, y, escala, pal, rainha, progresso, talento = null) {
+// `fase` desencontra a animação de cada abelha: com todas no mesmo compasso o
+// favo parece uma engrenagem, e não um bando. Passe o id da abelha.
+// `voando` levanta a sombra: quem está no ar projeta mais longe e mais fraco.
+export function desenharAbelha(ctx, x, y, escala, pal, rainha, progresso,
+  talento = null, fase = 0, voando = false) {
+  const agora = typeof performance !== 'undefined' ? performance.now() : 0;
+  const tamanho = escala * (rainha ? 1.3 : 1);
+
+  // Sombra, desenhada antes de tudo e **fora** do `scale`: é o que tira a
+  // abelha da cara de adesivo colado e a põe acima da célula. A distância e a
+  // suavidade dela são a única pista de altura que o jogo tem — não há
+  // perspectiva nenhuma no favo.
+  const altura = voando ? 1 : 0.3;
+  ctx.save();
+  ctx.beginPath();
+  ctx.ellipse(x + 6 * tamanho * altura, y + (15 + 14 * altura) * tamanho,
+    13 * tamanho * (1 + 0.3 * altura), 4.5 * tamanho * (1 + 0.25 * altura),
+    0, 0, Math.PI * 2);
+  ctx.fillStyle = `rgba(58, 46, 20, ${voando ? 0.12 : 0.2})`;
+  ctx.fill();
+  ctx.restore();
+
   ctx.save();
   ctx.translate(x, y);
-  const tamanho = escala * (rainha ? 1.3 : 1);
   ctx.scale(tamanho, tamanho);
   if (rainha) {
     ctx.beginPath(); ctx.ellipse(0, -3, 29, 32, 0, 0, Math.PI * 2);
@@ -346,11 +366,22 @@ export function desenharAbelha(ctx, x, y, escala, pal, rainha, progresso, talent
     ctx.strokeStyle = '#ffe6a0'; ctx.lineWidth = 2; ctx.stroke();
   }
 
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  for (const s of [-1, 1]) {
-    ctx.beginPath();
-    ctx.ellipse(s * 13, -6, 11, 7, s * 0.5, 0, Math.PI * 2);
-    ctx.fill();
+  // Asas batendo. A abelha de verdade bate a 200 Hz, o que numa tela de 30
+  // quadros vira tremida; o que lê como voo aqui é ~4 Hz. A rainha bate mais
+  // devagar — ela é maior e quase não voa.
+  const compasso = rainha ? 52 : 34;
+  const bate = Math.sin(agora / compasso + fase * 1.7);
+  const abre = 0.42 + 0.58 * Math.abs(bate);
+  // Rastro: uma asa mais fraca na posição oposta, que é o borrão do
+  // movimento. Sem ele o bater parece um piscar.
+  const rastro = 0.42 + 0.58 * Math.abs(Math.sin(agora / compasso + fase * 1.7 - 0.9));
+  for (const [aberta, alfa] of [[rastro, 0.22], [abre, 0.6]]) {
+    ctx.fillStyle = `rgba(255,255,255,${alfa})`;
+    for (const s of [-1, 1]) {
+      ctx.beginPath();
+      ctx.ellipse(s * 13, -6, 11, 7 * aberta, s * (0.3 + 0.4 * aberta), 0, Math.PI * 2);
+      ctx.fill();
+    }
   }
 
   ctx.fillStyle = '#f2c31c';
