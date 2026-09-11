@@ -26,7 +26,7 @@ export function desenharRax(ctx, estado, pal, t, L, A) {
   ctx.fill();
   zona('rax:cartao', x, y, l, a);
 
-  const meta = metaDoAno(estado.ano);
+  const meta = metaDoAno(estado.ano, estado);
   rotulo(ctx, m.compacto ? 'rax' : 'bolsa real de apicultura', x + 24, y + 32, {
     tamanho: m.rotulo, cor: pal.css('suave'), espaco: 2.6,
   });

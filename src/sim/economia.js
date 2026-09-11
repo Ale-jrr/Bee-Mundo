@@ -1,3 +1,5 @@
+import { fatorDaDificuldade } from './desafios.js';
+
 // Todas as constantes de balanceamento vivem aqui. Nenhum número mágico
 // espalhado pelo resto do código — a curva do jogo se ajusta neste arquivo.
 // Ver docs/BALANCE.md para o raciocínio por trás de cada bloco.
@@ -401,7 +403,13 @@ export const META = {
   porAno: [1100, 2450, 2700, 2800, 2900, 2950, 3000, 3050, 3100],
 };
 
-export function metaDoAno(ano) {
+// `estado` é opcional só para as chamadas antigas dos testes; no jogo ele
+// sempre chega, e é dele que sai o fator de dificuldade.
+export function metaDoAno(ano, estado = null) {
+  return Math.round(metaBase(ano) * fatorDaDificuldade(estado));
+}
+
+function metaBase(ano) {
   const i = Math.max(1, Math.round(ano)) - 1;
   if (i < META.porAno.length) return META.porAno[i];
   // Além da tabela: segue no ritmo do último degrau. Não acontece no jogo

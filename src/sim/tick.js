@@ -4,7 +4,7 @@ import { consumirMel, MEL_REFEICAO_INVERNO } from './alimento.js';
 import { atualizarFloradas, statsComFlorada } from './floradas.js';
 import { atualizarEncomendas } from './encomendas.js';
 import { abrirEscolha, bonusBencao, descontoBencao, fatorDoInverno } from './bencaos.js';
-import { regraDoDesafio, penalidadeDoInverno } from './desafios.js';
+import { regraDoDesafio, penalidadeDoInverno, anosDaPartida } from './desafios.js';
 import { ritmoDoAr, limiteDeFome } from './clima.js';
 import { atualizarEnxame } from './enxame.js';
 import { atualizarTempo, fatorDaColeta, fatorDaRebrota } from './tempo.js';
@@ -690,7 +690,7 @@ function presentearCelulas(estado) {
 function virarAno(estado, t) {
   if (t.ano === estado.ano) return;
 
-  const meta = metaDoAno(estado.ano);
+  const meta = metaDoAno(estado.ano, estado);
   const bateu = estado.vendidoNoAno >= meta;
   estado.historico.push({ ano: estado.ano, meta, vendido: estado.vendidoNoAno, bateu });
 
@@ -701,7 +701,7 @@ function virarAno(estado, t) {
   }
 
   // Bateu a meta do último ano: a colmeia sobreviveu ao ciclo inteiro.
-  if (estado.ano >= META.anoFinal) {
+  if (estado.ano >= anosDaPartida(estado)) {
     estado.vitoria = {
       ano: estado.ano,
       total: Math.round(estado.historico.reduce((soma, h) => soma + h.vendido, 0)),

@@ -2,11 +2,12 @@ import { retanguloArredondado, pilula, rotulo, caminhoHex, FONTE } from '../rend
 import { zona } from './zonas.js';
 import { medidas } from './layout.js';
 import { desenharChips, alturaDosChips } from './desafios.js';
-import { DESAFIO_PADRAO } from '../sim/desafios.js';
+import {
+  DESAFIO_PADRAO, DURACOES, DURACAO_PADRAO, DIFICULDADES, DIFICULDADE_PADRAO,
+} from '../sim/desafios.js';
 import { relogio } from '../sim/estacoes.js';
 import { ler as lerConquistas } from '../core/conquistas.js';
 import { mudo } from '../render/som.js';
-import { META } from '../sim/economia.js';
 
 // Tela de início. Faz três coisas que nenhuma outra tela fazia:
 //
@@ -31,6 +32,11 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
   // se não couber na tela. Antes cada bloco calculava a própria altura por
   // conta: a marca reservava 96·esc e desenhava o subtítulo em 94·esc, com o
   // título ocupando até 93·esc — o nome do jogo saía por cima do subtítulo.
+  // O título e o rodapé falam da duração escolhida, não de um nove fixo:
+  // escolher "curta" e continuar lendo "nove anos" é a tela mentindo.
+  const anos = DURACOES[ui.duracaoEscolhida ?? DURACAO_PADRAO]?.anos
+    ?? DURACOES[DURACAO_PADRAO].anos;
+
   const cabe = A - m.margem * 2;
   let d = medir(m, m.esc, podeContinuar);
   if (d.a > cabe) d = medir(m, m.esc * (cabe / d.a), podeContinuar);
@@ -44,7 +50,8 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
   ctx.fill();
   zona('inicio:cartao', x, y, l, d.a);
 
-  let cursor = desenharMarca(ctx, pal, d, x, y + d.pad, l) + d.gap + d.respiro;
+  let cursor = desenharMarca(ctx, pal, { ...d, subtitulo: `um apiário em ${anos} anos` },
+    x, y + d.pad, l) + d.gap + d.respiro;
 
   if (podeContinuar) {
     const t = relogio(estado.decorrido);
@@ -83,7 +90,28 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
   zona('inicio:tutorial', x + d.pad, cursor, l - d.pad * 2, d.hBotao);
   cursor += d.hBotao + d.gap + d.respiro;
 
-  rotulo(ctx, 'desafio da próxima partida', x + d.pad, cursor + d.hRotulo / 2, {
+  // Três eixos, do mais conseqüente ao mais temático: quanto tempo dura,
+  // quanto exige, e qual regra está torcida. Duração vem primeiro porque é a
+  // única que o jogador decide olhando o relógio, não o jogo.
+  rotulo(ctx, 'duração', x + d.pad, cursor + d.hRotulo / 2, {
+    tamanho: Math.max(9, 10 * d.esc), cor: pal.css('suave'), espaco: 2.2,
+  });
+  cursor += d.hRotulo + d.respiro;
+  cursor += desenharChips(ctx, pal, x + d.pad, cursor, l - d.pad * 2,
+    ui.duracaoEscolhida ?? DURACAO_PADRAO, 'inicio:duracao',
+    { tabela: DURACOES, colunas: 3, altura: 34, travado: () => false });
+  cursor += d.respiro;
+
+  rotulo(ctx, 'dificuldade', x + d.pad, cursor + d.hRotulo / 2, {
+    tamanho: Math.max(9, 10 * d.esc), cor: pal.css('suave'), espaco: 2.2,
+  });
+  cursor += d.hRotulo + d.respiro;
+  cursor += desenharChips(ctx, pal, x + d.pad, cursor, l - d.pad * 2,
+    ui.dificuldadeEscolhida ?? DIFICULDADE_PADRAO, 'inicio:dificuldade',
+    { tabela: DIFICULDADES, colunas: 4, altura: 34, travado: () => false });
+  cursor += d.respiro;
+
+  rotulo(ctx, 'desafio da próxima partida', x + d.pad, cursor, {
     tamanho: Math.max(9, 10 * d.esc), cor: pal.css('suave'), espaco: 2.2,
   });
   cursor += d.hRotulo + d.respiro;
@@ -103,10 +131,10 @@ export function desenharInicio(ctx, estado, pal, L, A, ui = {}) {
   // Rodapé: o que a colmeia já provou. Sem isso, quem perde no Ano 6 não tem
   // nenhum registro de ter chegado lá.
   const marca = conquistas.venceu
-    ? `colmeia vencedora · sobreviveu aos ${META.anoFinal} anos`
+    ? `colmeia vencedora · sobreviveu aos ${anos} anos`
     : conquistas.melhorAno > 1
-      ? `melhor até agora: ano ${conquistas.melhorAno} de ${META.anoFinal}`
-      : `sobreviva a ${META.anoFinal} anos`;
+      ? `melhor até agora: ano ${conquistas.melhorAno} de ${anos}`
+      : `sobreviva a ${anos} anos`;
   rotulo(ctx, marca, x + l / 2, cursor + d.tamSub / 2, {
     tamanho: d.tamSub, cor: pal.css('suave'), espaco: 1.6, alinhar: 'center',
   });
@@ -136,6 +164,8 @@ function medir(m, esc, podeContinuar) {
     + (podeContinuar ? hBotao + gap : 0)
     + hBotao + gap                                  // começar / novo jogo
     + hBotao + gap + respiro                        // tutorial
+    + (hRotulo + respiro + alturaDosChips(3, 3, 34) + respiro)   // duração
+    + (hRotulo + respiro + alturaDosChips(4, 4, 34) + respiro)   // dificuldade
     + hRotulo + respiro + alturaDosChips() + gap    // desafios
     + hSom + gap
     + tamSub + pad;                                 // rodapé
@@ -166,7 +196,7 @@ function desenharMarca(ctx, pal, d, x, y, l) {
   ctx.fillText('COLMEIA', cx, yTitulo, l - d.pad * 2);
   ctx.restore();
 
-  rotulo(ctx, 'um apiário em nove anos',
+  rotulo(ctx, d.subtitulo,
     cx, yTitulo + tamTitulo / 2 + respiro + Math.round(4 * esc) + tamSub / 2, {
       tamanho: tamSub, cor: pal.css('suave'), espaco: 2.4, alinhar: 'center',
     });

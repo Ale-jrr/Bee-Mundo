@@ -1,7 +1,10 @@
 import { criarRng } from './rng.js';
 import { chave, espiral } from '../sim/hex.js';
 import { CLIMA, VARIEDADES, CELULA, SILO, CAMPOS, NINHADA } from '../sim/economia.js';
-import { DESAFIO_PADRAO, DESAFIOS } from '../sim/desafios.js';
+import {
+  DESAFIOS, DESAFIO_PADRAO, DURACOES, DURACAO_PADRAO,
+  DIFICULDADES, DIFICULDADE_PADRAO,
+} from '../sim/desafios.js';
 
 // 2: as abelhas passaram a fazer o mel (antes a célula curava sozinha), ganharam
 // passeio, trabalho e fome.
@@ -12,9 +15,20 @@ export const VERSAO_SAVE = 3;
 
 // O estado é 100% serializável: nada de funções, nada de referências ao DOM.
 // `sim/` só transforma este objeto; `render/` só lê.
-export function novoJogo(semente = Date.now() & 0xffffffff, desafio = DESAFIO_PADRAO) {
+// `modos` reúne os eixos da partida: o desafio (que torce uma regra), a
+// duração (quantos anos) e a dificuldade (quanto a meta exige). São eixos
+// separados de propósito — "mais difícil" e "diferente" não são a mesma
+// coisa, e a duração não é nem uma nem outra.
+//
+// Aceita string no segundo parâmetro para os saves e testes antigos, que
+// passavam só o desafio.
+export function novoJogo(semente = Date.now() & 0xffffffff, modos = DESAFIO_PADRAO) {
+  const escolhas = typeof modos === 'string' ? { desafio: modos } : (modos ?? {});
   const rng = criarRng(semente);
-  const modo = DESAFIOS[desafio] ? desafio : DESAFIO_PADRAO;
+  const modo = DESAFIOS[escolhas.desafio] ? escolhas.desafio : DESAFIO_PADRAO;
+  const duracao = DURACOES[escolhas.duracao] ? escolhas.duracao : DURACAO_PADRAO;
+  const dificuldade = DIFICULDADES[escolhas.dificuldade]
+    ? escolhas.dificuldade : DIFICULDADE_PADRAO;
 
   const celulas = {};
   // Centro + primeiro anel. O centro é da rainha; três vizinhas já vêm abertas.
@@ -37,7 +51,9 @@ export function novoJogo(semente = Date.now() & 0xffffffff, desafio = DESAFIO_PA
   return {
     versao: VERSAO_SAVE,
     semente,
-    desafio: modo,          // modificador de partida escolhido no menu
+    desafio: modo,
+    duracao,
+    dificuldade,          // modificador de partida escolhido no menu
     rngEstado: rng.semente,
 
     decorrido: 0,          // segundos de jogo — a única fonte de tempo

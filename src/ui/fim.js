@@ -1,6 +1,6 @@
 import { rotulo, numero, pilula } from '../render/desenho.js';
 import { zona } from './zonas.js';
-import { META } from '../sim/economia.js';
+import { anosDaPartida } from '../sim/desafios.js';
 
 // Telas de fim de partida. Ficavam em rax.js, que é o mercado — aqui é o lugar
 // delas, e agora são duas: a colmeia morre ou sobrevive ao ciclo inteiro.
@@ -33,7 +33,7 @@ export function desenharVitoria(ctx, estado, pal, L, A) {
   // Um favo simples em volta do número, para a vitória não ser só texto.
   coroa(ctx, L / 2, A / 2 - 96 * esc, 26 * esc);
 
-  rotulo(ctx, `a colmeia atravessou os ${META.anoFinal} anos`, L / 2, A / 2 - 44 * esc, {
+  rotulo(ctx, `a colmeia atravessou os ${anosDaPartida(estado)} anos`, L / 2, A / 2 - 44 * esc, {
     tamanho: Math.max(11, 18 * esc), cor: '#e8f2d8', espaco: 3.5 * esc, alinhar: 'center',
   });
   numero(ctx, String(total), L / 2, A / 2 + 12 * esc, {

@@ -52,7 +52,7 @@ function desenharBarraSuperior(ctx, estado, pal, t, m) {
   esquerda += lMoeda + Math.round(10 * esc);
 
   // Meta do ano
-  const meta = metaDoAno(estado.ano);
+  const meta = metaDoAno(estado.ano, estado);
   const bateu = estado.vendidoNoAno >= meta;
   const lMeta = Math.round((compacto ? 108 : 168) * esc);
   pilula(ctx, esquerda, y + interno, lMeta, altura);

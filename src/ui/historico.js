@@ -47,7 +47,7 @@ export function desenharHistorico(ctx, estado, pal, L, A) {
   }
   // O ano em curso entra em cinza: é o único que ainda pode mudar, e é o que o
   // jogador quer comparar com os anteriores.
-  linha(ctx, pal, x, cursor, l, estado.ano, metaDoAno(estado.ano), estado.vendidoNoAno, null);
+  linha(ctx, pal, x, cursor, l, estado.ano, metaDoAno(estado.ano, estado), estado.vendidoNoAno, null);
 
   definirRecorte(null);
   ctx.restore();

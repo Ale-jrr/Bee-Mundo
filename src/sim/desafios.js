@@ -29,6 +29,52 @@ export const DESAFIOS = {
 
 export const DESAFIO_PADRAO = 'padrao';
 
+// ----------------------------------------------------------- duração
+// Quantos anos a partida tem. É eixo próprio, e não um desafio, porque não
+// muda **como** se joga — muda quanto tempo dura. Com a estação em 3 min e
+// meio, cada ano é 14 minutos.
+//
+// A tabela da meta tem nove degraus já calibrados; uma partida curta usa os
+// primeiros, que são os mesmos. Por isso encurtar não exige recalibrar nada.
+export const DURACOES = {
+  curta: { nome: 'Curta', anos: 4, resumo: '4 anos · ~1 hora' },
+  media: { nome: 'Média', anos: 6, resumo: '6 anos · ~1h25' },
+  longa: { nome: 'Longa', anos: 9, resumo: '9 anos · ~2h' },
+};
+
+export const DURACAO_PADRAO = 'media';
+
+export function anosDaPartida(estado) {
+  return DURACOES[estado?.duracao ?? DURACAO_PADRAO]?.anos ?? DURACOES[DURACAO_PADRAO].anos;
+}
+
+// ------------------------------------------------------- dificuldade
+// Só mexe na exigência, não nas regras: é um multiplicador sobre a meta de
+// cada ano. Separado dos desafios de propósito — "mais difícil" e "diferente"
+// são coisas distintas, e misturar as duas foi o que deixou a lista antiga
+// sem um eixo claro de progressão.
+//
+// Os números são relativos à folga medida do jogador razoável, que é de ~1,3
+// no normal (ver docs/BALANCE.md): no fácil ela vira ~1,7, e no brutal ~0,9 —
+// só quem alimenta ninhada e mistura florada passa.
+export const DIFICULDADES = {
+  tranquila: { nome: 'Tranquila', meta: 0.75, resumo: 'Meta 25% menor' },
+  normal: { nome: 'Normal', meta: 1, resumo: 'A meta calibrada' },
+  dura: { nome: 'Dura', meta: 1.3, resumo: 'Meta 30% maior' },
+  brutal: { nome: 'Brutal', meta: 1.5, resumo: 'Meta 50% maior' },
+};
+
+export const DIFICULDADE_PADRAO = 'normal';
+
+export function fatorDaDificuldade(estado) {
+  return DIFICULDADES[estado?.dificuldade ?? DIFICULDADE_PADRAO]?.meta ?? 1;
+}
+
+export function nomeDaDificuldade(estado) {
+  return DIFICULDADES[estado?.dificuldade ?? DIFICULDADE_PADRAO]?.nome
+    ?? DIFICULDADES[DIFICULDADE_PADRAO].nome;
+}
+
 export function regraDoDesafio(estado, chave) {
   return DESAFIOS[estado?.desafio ?? DESAFIO_PADRAO]?.[chave] ?? 1;
 }

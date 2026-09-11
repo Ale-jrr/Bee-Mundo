@@ -35,13 +35,16 @@ import {
   PASSOS, tutorialAtivo, comecarTutorial, pularTutorial, confirmarPasso, avancarTutorial,
 } from '../src/sim/tutorial.js';
 import * as S from '../src/core/save.js';
-import { DESAFIO_PADRAO, regraDoDesafio, penalidadeDoInverno } from '../src/sim/desafios.js';
+import {
+  DESAFIO_PADRAO, regraDoDesafio, penalidadeDoInverno,
+  DURACOES, DURACAO_PADRAO, DIFICULDADE_PADRAO, anosDaPartida,
+} from '../src/sim/desafios.js';
 import {
   TALENTOS, elenco, censo, fatorColeta, fatorProducao, fatorRisco, melhorPara,
 } from '../src/sim/talentos.js';
 import { campoEmFlorada, statsComFlorada, FLORADA } from '../src/sim/floradas.js';
 import { encomendaAtiva } from '../src/sim/encomendas.js';
-import { VARIEDADES, precoDaCelula, PRESENTE_DO_ANO, NINHADA } from '../src/sim/economia.js';
+import { VARIEDADES, precoDaCelula, PRESENTE_DO_ANO, NINHADA, META, metaDoAno } from '../src/sim/economia.js';
 import {
   BENCAOS, nivelBencao, totalBencao, bonusBencao, descontoBencao, fatorDoInverno,
   sortearBencaos, escolherBencao, textoDaBencao,
@@ -1338,6 +1341,51 @@ export async function rodar() {
   ok('a tela da ninhada oferece os tres pendores',
     fonteNinhada.includes("['coleta', 'producao', 'defesa']"));
   ok('e registra a zona de encomenda', fonteNinhada.includes("'ninhada:pendor'"));
+
+  // -------------------------------- 32. eixos da partida: duracao e dificuldade
+  const curtaTranquila = novoJogo(42, { duracao: 'curta', dificuldade: 'tranquila' });
+  const longaBrutal = novoJogo(42, { duracao: 'longa', dificuldade: 'brutal' });
+  ok('duracao curta tem menos anos que longa',
+    anosDaPartida(curtaTranquila) < anosDaPartida(longaBrutal),
+    `${anosDaPartida(curtaTranquila)} vs ${anosDaPartida(longaBrutal)}`);
+  ok('toda duracao cabe na tabela da meta',
+    Object.values(DURACOES).every((d) => d.anos <= META.porAno.length),
+    Object.values(DURACOES).map((d) => d.anos).join(','));
+
+  const normal = novoJogo(42);
+  ok('dificuldade tranquila pede menos', metaDoAno(1, curtaTranquila) < metaDoAno(1, normal));
+  ok('e brutal pede mais', metaDoAno(1, longaBrutal) > metaDoAno(1, normal));
+  ok('normal e exatamente a tabela', metaDoAno(3, normal) === META.porAno[2]);
+  ok('o fator vale para todos os anos',
+    [1, 2, 5].every((a) => metaDoAno(a, longaBrutal) > metaDoAno(a, normal)));
+
+  // Os eixos sao independentes: trocar um nao mexe no outro.
+  ok('os eixos nao se misturam',
+    curtaTranquila.desafio === longaBrutal.desafio
+    && curtaTranquila.duracao !== longaBrutal.duracao
+    && curtaTranquila.dificuldade !== longaBrutal.dificuldade);
+
+  // Compatibilidade: saves e testes antigos passavam so a string do desafio.
+  const soDesafio = novoJogo(42, 'perigoso');
+  ok('a forma antiga continua valendo',
+    soDesafio.desafio === 'perigoso' && soDesafio.duracao === DURACAO_PADRAO
+    && soDesafio.dificuldade === DIFICULDADE_PADRAO);
+
+  const voltouModos = S.desserializar(JSON.parse(JSON.stringify(S.serializar(curtaTranquila))));
+  ok('os eixos sobrevivem ao save',
+    voltouModos.duracao === 'curta' && voltouModos.dificuldade === 'tranquila');
+  ok('e a meta volta igual', metaDoAno(1, voltouModos) === metaDoAno(1, curtaTranquila));
+
+  // A vitoria segue a duracao escolhida, nao um nove fixo.
+  const quaseLa = novoJogo(42, { duracao: 'curta' });
+  quaseLa.ano = anosDaPartida(quaseLa);
+  quaseLa.vendidoNoAno = metaDoAno(quaseLa.ano, quaseLa) + 1;
+  quaseLa.decorrido = anosDaPartida(quaseLa) * SEGUNDOS_POR_ANO - 0.05;
+  // Alguns quadros: um tick de 1/30 s nao cruza a virada a partir de -0,05 s.
+  for (let i = 0; i < 5 && !quaseLa.vitoria; i++) passo(quaseLa, 1 / 30);
+  ok('vencer na duracao curta acontece no ano dela',
+    quaseLa.vitoria !== null && quaseLa.vitoria.ano === anosDaPartida(quaseLa),
+    `${quaseLa.vitoria?.ano ?? '-'} de ${anosDaPartida(quaseLa)}`);
 
   return { total, falhas: falhas.length, detalhes: falhas };
 }

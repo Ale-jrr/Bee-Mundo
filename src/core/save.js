@@ -39,6 +39,8 @@ export function serializar(estado) {
     salvoEm: Date.now(),
     semente: estado.semente,
     desafio: estado.desafio ?? null,
+    duracao: estado.duracao ?? null,
+    dificuldade: estado.dificuldade ?? null,
     rngEstado: estado.rngEstado,
     decorrido: estado.decorrido,
     velocidade: estado.velocidade,
@@ -87,7 +89,11 @@ export function serializar(estado) {
 // Reconstrói sobre um jogo novo: qualquer campo que o save não tenha (porque é
 // mais antigo que o código) fica com o padrão em vez de virar `undefined`.
 export function desserializar(dados) {
-  const base = novoJogo(dados.semente ?? Date.now() & 0xffffffff, dados.desafio ?? undefined);
+  const base = novoJogo(dados.semente ?? Date.now() & 0xffffffff, {
+    desafio: dados.desafio ?? undefined,
+    duracao: dados.duracao ?? undefined,
+    dificuldade: dados.dificuldade ?? undefined,
+  });
   const estado = { ...base };
 
   for (const chave of [

@@ -36,6 +36,8 @@ const ui = {
   ajudaMelhorias: false, painel: null, rolagemCampos: 0, rolagemMax: 0, ovoSelecionado: null,
   salvoEm: null, saveFalhou: false, confirmandoNovoJogo: false,
   desafioEscolhido: null,
+  duracaoEscolhida: null,
+  dificuldadeEscolhida: null,
   // Quais cartões o jogador encolheu. Enquadramento, não estado de jogo.
   minimizados: {},
   // Avisos que ele já abriu: é o que faz o sino parar de piscar.
@@ -222,6 +224,12 @@ function tratarInicio(z) {
       recomecar();
       comecarTutorial(estado);
       ui.tela = 'jogo';
+      break;
+    case 'inicio:duracao':
+      ui.duracaoEscolhida = z.dados.id;
+      break;
+    case 'inicio:dificuldade':
+      ui.dificuldadeEscolhida = z.dados.id;
       break;
     case 'inicio:desafio':
       ui.desafioEscolhido = z.dados.id;
@@ -454,7 +462,11 @@ function recomecar() {
   ui.temSave = false;
   vitoriaRegistrada = false;
   ultimoAnoVisto = 0;
-  estado = novoJogo(undefined, ui.desafioEscolhido ?? undefined);
+  estado = novoJogo(undefined, {
+    desafio: ui.desafioEscolhido ?? undefined,
+    duracao: ui.duracaoEscolhida ?? undefined,
+    dificuldade: ui.dificuldadeEscolhida ?? undefined,
+  });
   ui.painel = null;
   ui.ajudaMelhorias = false;
   ui.confirmandoNovoJogo = false;

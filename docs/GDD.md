@@ -932,3 +932,56 @@ ter o ritmo de quem está trabalhando, não de quem está fugindo.
 Custo medido: **−10% de produção nos dois primeiros anos**, quase nada do Ano
 3 em diante — a caminhada pesa quando a colônia é pequena e o favo curto.
 A tabela da meta aguentou sem mudança: folga de 1,25 a 1,72 nos nove anos.
+
+### 9.28 Três eixos de partida — duração, dificuldade e desafio
+
+A lista de desafios misturava coisas diferentes: "Espaço Apertado" muda **como**
+se joga, e não **quanto** exige nem **quanto dura**. Com um eixo só não havia
+como pedir "a mesma coisa, mas mais curta" — e a partida longa passou a levar
+duas horas depois que a estação cresceu.
+
+Agora são três escolhas independentes na tela de início:
+
+| eixo | opções | o que muda |
+| --- | --- | --- |
+| **duração** | Curta 4 anos (~56 min), Média 6 (~84), Longa 9 (~126) | quantos anos |
+| **dificuldade** | Tranquila 0,75×, Normal 1×, Dura 1,3×, Brutal 1,5× | o multiplicador da meta |
+| **desafio** | Comum, Apertado, Perigoso, Rigoroso | uma regra torcida |
+
+**A duração não exige recalibrar nada.** `META.porAno` tem nove degraus já
+calibrados e uma partida curta usa os quatro primeiros — que são exatamente os
+mesmos. Foi por isso que a meta virou tabela em vez de fórmula (§ BALANCE).
+
+**A dificuldade também não**, porque é um multiplicador sobre a tabela e não
+uma tabela nova. Relativo à folga medida do jogador razoável (~1,3 no normal):
+na Tranquila ela vira ~1,7; na Brutal, ~0,9 — só quem alimenta ninhada e
+mistura florada passa.
+
+Detalhes:
+
+- `novoJogo(semente, modos)` aceita `{ desafio, duracao, dificuldade }`, e
+  **continua aceitando uma string** para os saves e testes antigos que
+  passavam só o desafio;
+- os três vão no save;
+- `desenharChips` virou genérico (tabela, colunas, altura, e quem está
+  trancado). Uma cópia por eixo divergiria na primeira vez que alguém
+  acrescentasse uma opção;
+- o título e o rodapé da tela de início falam da duração escolhida — escolher
+  "curta" e continuar lendo "nove anos" seria a tela mentindo.
+
+#### O que falta para "jogo completo"
+
+Biomas e espécies, que são os dois eixos caros, e nesta ordem:
+
+- **bioma** traz lista própria de campos (barato: `estado.campos` já é por
+  estado) e um **deslocamento de temperatura por estação** — aplicado no
+  consumo, e não reescrevendo `relogio`, que é chamado em dezenas de lugares;
+- **espécie** vira um punhado de multiplicadores nos mesmos pontos onde
+  talento e bênção já multiplicam. A espécie vem **junto com o bioma**, não
+  como quarto eixo: cada bioma tem as abelhas dele, e isso evita combinação
+  sem sentido.
+
+E aí está o custo escondido: 3 durações × 4 dificuldades × 4 biomas são 48
+combinações, e não dá para calibrar meta para cada uma. A saída é a meta
+continuar **derivada** — tabela base × fator de dificuldade × fator de bioma
+— e medir só os biomas.
