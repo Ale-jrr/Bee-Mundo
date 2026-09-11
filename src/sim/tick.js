@@ -115,8 +115,10 @@ function atualizarClima(estado, t, dt) {
 // Colmeia pequena não vence o inverno; colmeia grande não superaquece no verão.
 export function temperaturaAlvo(ambiente, naColmeia, calor = 1) {
   const [minIdeal, maxIdeal] = NINHADA.tempIdeal;
-  const autoridade = Math.min(CLIMA.autoridadeMaxima,
-    naColmeia * CLIMA.grausPorAbelha * calor);
+  // Retornos decrescentes: satura no teto em vez de somar por abelha. Ver o
+  // comentário de `escalaDaAutoridade` em economia.js para o porquê.
+  const autoridade = CLIMA.autoridadeMaxima * calor
+    * (1 - Math.exp(-Math.max(0, naColmeia) / CLIMA.escalaDaAutoridade));
   if (ambiente < minIdeal) return Math.min(minIdeal, ambiente + autoridade);
   if (ambiente > maxIdeal) return Math.max(maxIdeal, ambiente - autoridade);
   return ambiente;

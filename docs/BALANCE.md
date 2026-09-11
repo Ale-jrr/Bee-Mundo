@@ -1248,3 +1248,81 @@ segura mel em vez de vender.
 
 Se um dia a distância entre os dois incomodar, o parafuso não é a meta — é
 `NINHADA.avancoPorMel`, que hoje transforma um pote de mel em 10% de eclosão.
+
+## "As abelhas estão comendo muito" — o diagnóstico era outro
+
+Medido no Ano 1, com o jogador guardando reserva e recolhendo antes do inverno:
+
+| reserva | colheu | comeram | % comido | moedas |
+| --- | --- | --- | --- | --- |
+| 0 (vende tudo) | 52 | 0 | 0% | 508 |
+| 6 | 74 | 9,4 | 13% | 726 |
+| 14 | 61 | 17,3 | 28% | 399 |
+
+Duas coisas aparecem aí. Vender **tudo** produz menos que guardar 6 (52 contra
+74 potes): abelha com fome trabalha 50% mais devagar, então economizar mel sai
+mais caro que o mel economizado. E 13% é o custo no ponto bom — alto, mas não
+absurdo.
+
+O problema estava na linha do tempo da colônia: `pri:2 pri:2 ver:2` — **duas
+operárias durante toda a primavera e metade do verão**.
+
+### A primavera era um segundo inverno
+
+| abelhas no favo | primavera | eclosão |
+| --- | --- | --- |
+| 3 | 22,2 °C | **parada** |
+| 5 | 25,0 °C | **parada** |
+| 7 | 27,8 °C | 0,26 |
+
+A colmeia começa com três abelhas e precisava de **sete** para a rainha pôr na
+primavera — e não havia como chegar a sete sem pôr. Pior: quem está no campo
+não aquece o favo, então **mandar as coletoras esfriava a colmeia e impedia o
+crescimento**. Coletar competia com crescer, e o primeiro quarto do jogo era
+estruturalmente morto.
+
+### As duas mudanças
+
+**A termorregulação deixou de ser linear.** Era `1,4° × número de abelhas`, com
+teto. Agora satura numa curva: as primeiras abelhas rendem muito mais que a
+vigésima, porque colônia pequena se aperta em volta da ninhada e aquece um
+ninho pequeno.
+
+**A primavera subiu de 18 °C para 24 °C.** Só a curva não bastava: tentei
+várias escalas e bati num impasse aritmético — toda curva que liberava a
+primavera com duas abelhas dentro também liberava o **inverno** com dez, e o
+inverno perderia o sentido. 18 °C é que era estranho: primavera é a estação
+em que a colônia se monta, não um segundo inverno.
+
+Resultado, com só a rainha dentro: primavera a 27,9 °C e eclosão a 0,27 — põe
+devagar, mas põe. Inverno continua parado até a colônia passar de dez.
+
+### O efeito
+
+| | antes | depois |
+| --- | --- | --- |
+| colônia no Ano 1 | 2, 2, 2, 4, 11, 18 | **2, 5, 12, 19, 16, 13** |
+| potes colhidos no Ano 1 | 72 | **124** |
+| % do mel comido | 13% | **8%** |
+
+O consumo caiu sem tocar em `melPorRefeicao`: as abelhas comem o mesmo, mas há
+muito mais mel. **A queixa era real e a causa era outra.**
+
+### Tabela refeita
+
+```js
+META.porAno = [1100, 2450, 2700, 2800, 2900, 2950, 3000, 3050, 3100]
+```
+
+| ano | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| razoável (média) | 1,29 | 1,39 | 1,35 | 1,28 | 1,48 | 1,28 | 1,33 | 1,44 | 1,21 |
+| razoável (pior) | 1,24 | 1,37 | 1,34 | 1,25 | 1,48 | 1,15 | 1,33 | 1,33 | 1,11 |
+
+A tabela sobe forte até o Ano 3 e depois quase para, porque a produção faz o
+mesmo: a colônia encontra o teto por volta do Ano 3 e daí em diante rende de
+3.400 a 4.700 com ruído, sem tendência.
+
+> Ressalva: esta tabela foi fechada com **duas** sementes, não seis — cada
+> partida do jogador razoável leva minutos de simulação. Vale refazer com mais
+> sementes antes de considerar o número final.

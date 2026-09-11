@@ -26,11 +26,21 @@ export const CLIMA = {
   co2:         { ideal: [0, 800], min: 300, max: 2000, nome: 'co2' },
   umidade:     { ideal: [50, 65], min: 0,   max: 100,  nome: 'umidade' },
   // Abelhas termorregulam nos dois sentidos: aquecem tremendo e resfriam
-  // ventilando. O que elas têm é autoridade limitada — cada abelha em casa
-  // rende alguns graus de correção, até um teto. Fora desse alcance a estação
-  // vence, e é aí que os boosts de clima existem para complementar.
-  grausPorAbelha: 1.4,
+  // ventilando. O que elas têm é autoridade limitada — fora do alcance delas a
+  // estação vence, e é aí que os boosts de clima existem para complementar.
+  //
+  // A autoridade **não é linear no número de abelhas**: as primeiras rendem
+  // muito mais que a vigésima, porque colônia pequena se aperta em volta da
+  // ninhada e aquece um ninho pequeno. Com a conta linear anterior
+  // (1,4° por abelha) a colmeia inicial de três abelhas chegava a 22,2°C na
+  // primavera, e a rainha **não punha um ovo sequer** — eram precisas sete
+  // abelhas para a primavera funcionar, e não havia como chegar a sete sem
+  // pôr. O primeiro quarto do jogo era estruturalmente morto.
+  //
+  // `escalaDaAutoridade` é o quanto a curva demora a saturar: quanto menor,
+  // mais cedo a colônia alcança o teto.
   autoridadeMaxima: 26,
+  escalaDaAutoridade: 6.2,
   // Respirar sobe o CO₂; abanar as asas na entrada o derruba. Como as duas
   // coisas escalam com a mesma colônia, um favo bem povoado se mantém perto do
   // limite em vez de asfixiar — mas a ventilação tem teto, então colônia grande
@@ -381,9 +391,14 @@ export const META = {
   // segura mel para alimentar a ninhada em vez de vender. É investimento, e
   // aparece em dobro no Ano 2.
   //
+  // A tabela **sobe forte até o Ano 3 e depois quase para**, e isso segue a
+  // produção: a colônia encontra o próprio teto por volta do Ano 3 e daí em
+  // diante rende de 3.400 a 4.700 com ruído, sem tendência. Meta que
+  // continuasse subindo depois disso viraria muro de novo.
+  //
   // Resultado: folga entre 1,3× e 1,5× em **todos** os nove anos. Nenhum ano
   // de graça, e o último é o mais apertado.
-  porAno: [480, 1050, 2300, 2900, 3300, 3500, 3650, 3800, 3950],
+  porAno: [1100, 2450, 2700, 2800, 2900, 2950, 3000, 3050, 3100],
 };
 
 export function metaDoAno(ano) {

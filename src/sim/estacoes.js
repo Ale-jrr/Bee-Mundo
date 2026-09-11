@@ -32,7 +32,12 @@ export const ESTACOES = [
   {
     id: 'primavera', nome: 'Primavera',
     produtividade: 1.20, risco: +0.05, rebrota: 0.70, preco: -0.10,
-    temperatura: 18, umidade: +8, co2: +0,
+    // 18°C fazia da primavera um segundo inverno para a ninhada: a colmeia
+    // inicial não aquecia o favo até a faixa de eclosão, e quem mandava as
+    // coletoras pro campo esfriava ainda mais — coletar impedia crescer. Com
+    // 24 a rainha põe desde o primeiro dia, que é o que uma primavera é numa
+    // colmeia de verdade: a estação em que a colônia se monta.
+    temperatura: 24, umidade: +8, co2: +0,
   },
   {
     id: 'verao', nome: 'Verão',
